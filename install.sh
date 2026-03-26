@@ -131,14 +131,46 @@ DB_HOST="${DB_HOST:-localhost}"
 echo ""
 echo -e "${CYAN}── Database Setup ───────────────────────────────${NC}"
 
+# Helper: run psql command trying multiple auth methods
+psql_run() {
+  local db="$1"; shift
+  local cmd=("$@")
+  # Method 1: with password + host
+  if [ -n "$DB_PASS" ]; then
+    PGPASSWORD="$DB_PASS" psql -U "$DB_USER" -h "$DB_HOST" -d "$db" "${cmd[@]}" > /dev/null 2>&1 && return 0
+  fi
+  # Method 2: sudo -u postgres (peer auth)
+  sudo -u postgres psql -d "$db" "${cmd[@]}" > /dev/null 2>&1 && return 0
+  # Method 3: DATABASE_URL direct
+  if [ -n "$DB_URL" ]; then
+    psql "$DB_URL" "${cmd[@]}" > /dev/null 2>&1 && return 0
+  fi
+  # Method 4: no password, localhost
+  PGPASSWORD="" psql -U "$DB_USER" -h "$DB_HOST" -d "$db" "${cmd[@]}" > /dev/null 2>&1 && return 0
+  return 1
+}
+
+# Helper: check db exists
+db_exists() {
+  local result
+  result=$(sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname='$DB_NAME'" 2>/dev/null) && [ "$result" = "1" ] && return 0
+  [ -n "$DB_PASS" ] && result=$(PGPASSWORD="$DB_PASS" psql -U "$DB_USER" -h "$DB_HOST" -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='$DB_NAME'" 2>/dev/null) && [ "$result" = "1" ] && return 0
+  return 1
+}
+
 info "Database '$DB_NAME' စစ်ဆေးနေသည်..."
 
-DB_EXISTS=$(sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname='$DB_NAME'" 2>/dev/null || echo "")
-if [ "$DB_EXISTS" != "1" ]; then
+if ! db_exists; then
   info "Database '$DB_NAME' မရှိ၊ ဆောက်နေသည်..."
-  sudo -u postgres createdb "$DB_NAME" 2>/dev/null \
-    && success "Database '$DB_NAME' ဆောက်ပြီးပါပြီ" \
-    || warn "Database ဆောက်မရပါ — ကိုယ်တိုင် ဆောက်ပါ"
+  created=false
+  sudo -u postgres createdb "$DB_NAME" 2>/dev/null && created=true
+  if [ "$created" = false ] && [ -n "$DB_PASS" ]; then
+    PGPASSWORD="$DB_PASS" psql -U "$DB_USER" -h "$DB_HOST" -d postgres -c "CREATE DATABASE $DB_NAME;" > /dev/null 2>&1 && created=true
+  fi
+  if [ "$created" = false ]; then
+    PGPASSWORD="" psql -U "$DB_USER" -h "$DB_HOST" -d postgres -c "CREATE DATABASE $DB_NAME;" > /dev/null 2>&1 && created=true
+  fi
+  [ "$created" = true ] && success "Database '$DB_NAME' ဆောက်ပြီးပါပြီ" || error "Database '$DB_NAME' ဆောက်မရပါ — PostgreSQL service running မရှိနိုင်ပါ ('systemctl start postgresql' ကြိုးစားပါ)"
 else
   success "Database '$DB_NAME' ရှိပြီးသားဖြစ်သည်"
 fi
@@ -146,19 +178,31 @@ fi
 # ── 5. Run schema.sql ─────────────────────────────────────────
 SCHEMA_FILE="$PROJECT_DIR/backend/schema.sql"
 
-if [ -f "$SCHEMA_FILE" ]; then
-  info "Database schema တပ်ဆင်နေသည်..."
-  if [ -n "$DB_PASS" ]; then
-    PGPASSWORD="$DB_PASS" psql -U "$DB_USER" -h "$DB_HOST" -d "$DB_NAME" -f "$SCHEMA_FILE" > /dev/null 2>&1 \
-      && success "Schema တပ်ဆင်ပြီးပါပြီ" \
-      || warn "Schema error — psql ဖြင့် ကိုယ်တိုင် run နိုင်သည်"
-  else
-    sudo -u postgres psql -d "$DB_NAME" -f "$SCHEMA_FILE" > /dev/null 2>&1 \
-      && success "Schema တပ်ဆင်ပြီးပါပြီ" \
-      || warn "Schema error — psql ဖြင့် ကိုယ်တိုင် run နိုင်သည်"
-  fi
+[ -f "$SCHEMA_FILE" ] || error "backend/schema.sql မတွေ့ပါ"
+
+info "Database schema တပ်ဆင်နေသည်..."
+
+schema_ok=false
+# Try each method in turn, capture errors for last-resort display
+SCHEMA_ERR=""
+
+if [ -n "$DB_PASS" ]; then
+  SCHEMA_ERR=$(PGPASSWORD="$DB_PASS" psql -U "$DB_USER" -h "$DB_HOST" -d "$DB_NAME" -f "$SCHEMA_FILE" 2>&1) && schema_ok=true
+fi
+if [ "$schema_ok" = false ]; then
+  SCHEMA_ERR=$(sudo -u postgres psql -d "$DB_NAME" -f "$SCHEMA_FILE" 2>&1) && schema_ok=true
+fi
+if [ "$schema_ok" = false ] && [ -n "$DB_URL" ]; then
+  SCHEMA_ERR=$(psql "$DB_URL" -f "$SCHEMA_FILE" 2>&1) && schema_ok=true
+fi
+if [ "$schema_ok" = false ]; then
+  SCHEMA_ERR=$(PGPASSWORD="" psql -U "$DB_USER" -h "$DB_HOST" -d "$DB_NAME" -f "$SCHEMA_FILE" 2>&1) && schema_ok=true
+fi
+
+if [ "$schema_ok" = true ]; then
+  success "Schema တပ်ဆင်ပြီးပါပြီ"
 else
-  error "backend/schema.sql မတွေ့ပါ"
+  error "Schema တပ်ဆင်မရပါ။\n  Error: $SCHEMA_ERR"
 fi
 
 # ── 6. Install dependencies ───────────────────────────────────
@@ -217,16 +261,6 @@ NGINX_ENABLED="/etc/nginx/sites-enabled/twodbet"
 DIST_PATH="$PROJECT_DIR/dist"
 
 info "Nginx config ရေးနေသည်..."
-
-# Create directories if they don't exist
-mkdir -p /etc/nginx/sites-available
-mkdir -p /etc/nginx/sites-enabled
-
-# Ensure nginx includes sites-enabled (add if missing)
-if ! grep -q "sites-enabled" /etc/nginx/nginx.conf 2>/dev/null; then
-  info "Nginx main config ထဲ sites-enabled include ထည့်နေသည်..."
-  sed -i '/http {/a\\tinclude /etc/nginx/sites-enabled/*;' /etc/nginx/nginx.conf 2>/dev/null || true
-fi
 
 cat > "$NGINX_CONF" <<NGINX_EOF
 server {
@@ -301,7 +335,6 @@ if [[ "$USE_SSL" =~ ^[Yy]$ ]]; then
   if [ -n "$SSL_EMAIL" ]; then
     certbot --nginx \
       -d "$DOMAIN" \
-      -d "www.$DOMAIN" \
       --non-interactive \
       --agree-tos \
       --email "$SSL_EMAIL" \
