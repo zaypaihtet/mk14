@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { ArrowLeft, Wallet, History, CheckCircle2, XCircle, Clock } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { ArrowLeft, Wallet, History, CheckCircle2, XCircle, Clock, CalendarOff } from "lucide-react";
+import { useNavigate, Link } from "react-router-dom";
 import TwoDQuickPickModal from "../components/lottery2d-betting/TwoDQuickPickModal";
 import { api, isLoggedIn } from "../utils/api";
 
@@ -39,6 +39,10 @@ const LotteryTwoDBetting = () => {
   const [eveningClose, setEveningClose] = useState("15:58");
   const [configLoaded, setConfigLoaded] = useState(false);
 
+  // Holiday detection
+  const [isHoliday, setIsHoliday]             = useState(false);
+  const [holidayDescription, setHolidayDesc]  = useState("");
+
   // Compute open/closed state (updates every minute)
   const [now, setNow] = useState(nowMins());
   useEffect(() => {
@@ -57,7 +61,7 @@ const LotteryTwoDBetting = () => {
     else if (eveningOpen) setSession("evening");
   }, [configLoaded, morningOpen, eveningOpen]);
 
-  // Fetch config (close times) + wallet balance
+  // Fetch config (close times) + wallet balance + holiday check
   useEffect(() => {
     if (!isLoggedIn()) return;
     api.getConfig()
@@ -70,6 +74,13 @@ const LotteryTwoDBetting = () => {
 
     api.getBalance()
       .then((d) => setBalance(d.balance ?? d))
+      .catch(() => {});
+
+    // Auto holiday detection
+    api.isHoliday()
+      .then((d) => {
+        if (d.isHoliday) { setIsHoliday(true); setHolidayDesc(d.description || "ပိတ်ရက်"); }
+      })
       .catch(() => {});
   }, []);
 
@@ -143,6 +154,23 @@ const LotteryTwoDBetting = () => {
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-400 to-blue-600">
       <div className="max-w-[500px] mx-auto min-h-screen pb-28">
+
+        {/* ── Holiday screen ─────────────────────────────────────────────── */}
+        {isHoliday ? (
+          <div className="flex flex-col items-center justify-center min-h-screen gap-6 px-8 text-center">
+            <div className="bg-white/20 backdrop-blur rounded-3xl p-8 w-full max-w-xs">
+              <CalendarOff className="w-16 h-16 mx-auto mb-4 text-white" />
+              <h2 className="text-2xl font-bold text-white mb-2">ပိတ်ရက်</h2>
+              <p className="text-white/90 text-lg font-semibold mb-1">{holidayDescription}</p>
+              <p className="text-white/70 text-sm mb-6">ဤနေ့တွင် 2D ထိုးခွင့် မပေးပါ</p>
+              <Link to="/">
+                <button className="w-full bg-white text-blue-600 font-semibold py-3 rounded-2xl hover:bg-blue-50 transition-colors">
+                  ပင်မစာမျက်နှာ ပြန်သွားမည်
+                </button>
+              </Link>
+            </div>
+          </div>
+        ) : (<>
 
         {/* Toast */}
         {toast && (
@@ -316,26 +344,28 @@ const LotteryTwoDBetting = () => {
             ))}
           </div>
         </div>
+        </>)}
       </div>
 
-      {/* Fixed bottom bet button */}
-      <div className="fixed bottom-0 left-0 right-0 max-w-[500px] mx-auto p-4 bg-gradient-to-t from-blue-700 to-transparent pt-6">
-        <button
-          onClick={handlePlaceBet}
-          disabled={selectedNumbers.length === 0 || placing || allClosed}
-          className="w-full bg-white text-blue-700 font-bold py-4 rounded-2xl shadow-xl disabled:opacity-50 disabled:cursor-not-allowed text-base hover:bg-blue-50 transition-colors"
-        >
-          {allClosed
-            ? "ရောင်းချိန် ပြည့်ပြီ"
-            : placing
-            ? "ထိုးနေသည်..."
-            : selectedNumbers.length === 0
-            ? "နံပါတ် ရွေးပါ"
-            : `ထိုးမည် — ${selectedNumbers.length} နံပါတ် (${totalBet.toLocaleString()} ကျပ်)`}
-        </button>
-      </div>
+      {!isHoliday && (
+        <div className="fixed bottom-0 left-0 right-0 max-w-[500px] mx-auto p-4 bg-gradient-to-t from-blue-700 to-transparent pt-6">
+          <button
+            onClick={handlePlaceBet}
+            disabled={selectedNumbers.length === 0 || placing || allClosed}
+            className="w-full bg-white text-blue-700 font-bold py-4 rounded-2xl shadow-xl disabled:opacity-50 disabled:cursor-not-allowed text-base hover:bg-blue-50 transition-colors"
+          >
+            {allClosed
+              ? "ရောင်းချိန် ပြည့်ပြီ"
+              : placing
+              ? "ထိုးနေသည်..."
+              : selectedNumbers.length === 0
+              ? "နံပါတ် ရွေးပါ"
+              : `ထိုးမည် — ${selectedNumbers.length} နံပါတ် (${totalBet.toLocaleString()} ကျပ်)`}
+          </button>
+        </div>
+      )}
 
-      {showQuickPickModal && (
+      {!isHoliday && showQuickPickModal && (
         <TwoDQuickPickModal
           setSelectedNumbers={setSelectedNumbers}
           setShowQuickPickModal={setShowQuickPickModal}

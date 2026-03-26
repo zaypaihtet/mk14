@@ -49,6 +49,10 @@ export const api = {
   // Winners
   getWinners2D: () => request("GET", "/lottery/winners/2d"),
 
+  // Holiday check (public)
+  isHoliday: (date) => request("GET", `/lottery/is-holiday${date ? `?date=${date}` : ""}`),
+  getUpcomingHolidays: () => request("GET", "/lottery/upcoming-holidays"),
+
   // Config (public - no auth required)
   getConfig: () => request("GET", "/config"),
 
@@ -76,6 +80,9 @@ export const api = {
     uploadLogo: (formData) => request("POST", "/admin/upload/logo", formData, true),
     addBanner: (formData) => request("POST", "/admin/upload/banners", formData, true),
     deleteBanner: (index) => request("DELETE", `/admin/banners/${index}`),
+    getHolidays: () => request("GET", "/admin/holidays"),
+    addHoliday: (data) => request("POST", "/admin/holidays", data),
+    deleteHoliday: (id) => request("DELETE", `/admin/holidays/${id}`),
   },
 };
 

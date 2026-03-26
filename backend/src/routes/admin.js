@@ -138,4 +138,31 @@ router.delete("/notifications/:id", async (req, res) => {
   }
 });
 
+// ── Holiday management ────────────────────────────────────────────────────────
+router.get("/holidays", async (req, res) => {
+  try {
+    const r = await pool.query("SELECT * FROM lottery_holidays ORDER BY holiday_date ASC");
+    res.json(r.rows);
+  } catch { res.status(500).json({ message: "Server error" }); }
+});
+
+router.post("/holidays", async (req, res) => {
+  const { holiday_date, description } = req.body;
+  if (!holiday_date || !description) return res.status(400).json({ message: "Date နှင့် ဖော်ပြချက် ဖြည့်ပါ" });
+  try {
+    const r = await pool.query(
+      "INSERT INTO lottery_holidays (holiday_date, description) VALUES ($1, $2) ON CONFLICT (holiday_date) DO UPDATE SET description = $2, created_at = NOW() RETURNING *",
+      [holiday_date, description]
+    );
+    res.status(201).json(r.rows[0]);
+  } catch (err) { res.status(500).json({ message: err.message }); }
+});
+
+router.delete("/holidays/:id", async (req, res) => {
+  try {
+    await pool.query("DELETE FROM lottery_holidays WHERE id = $1", [req.params.id]);
+    res.json({ message: "ဖျက်ပြီးပါပြီ" });
+  } catch { res.status(500).json({ message: "Server error" }); }
+});
+
 module.exports = router;

@@ -29,6 +29,7 @@ import AdminWithdrawPage from "./src/admin/pages/AdminWithdrawPage";
 import AdminMM2DPage from "./src/admin/pages/AdminMM2DPage";
 import AdminSettings from "./src/admin/pages/AdminSettings";
 import AdminNotificationsPage from "./src/admin/pages/AdminNotificationsPage";
+import AdminHolidayPage from "./src/admin/pages/AdminHolidayPage";
 import PrivateRoute from "./src/components/PrivateRoute";
 
 const router = createBrowserRouter([
@@ -92,6 +93,7 @@ const router = createBrowserRouter([
           { path: "mm2d", element: <AdminMM2DPage /> },
           { path: "notifications", element: <AdminNotificationsPage /> },
           { path: "settings", element: <AdminSettings /> },
+          { path: "holidays", element: <AdminHolidayPage /> },
         ],
       },
     ],

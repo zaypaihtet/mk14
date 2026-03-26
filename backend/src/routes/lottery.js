@@ -59,4 +59,39 @@ router.get("/live/2d", async (req, res) => {
   }
 });
 
+// Public: check if a date is a holiday (today if no ?date= param)
+// Sundays are always holidays for 2D. Specific dates come from lottery_holidays table.
+router.get("/is-holiday", async (req, res) => {
+  try {
+    const dateStr = req.query.date || new Date().toISOString().slice(0, 10);
+    const d = new Date(dateStr + "T00:00:00Z");
+    const dayOfWeek = d.getUTCDay(); // 0=Sun
+
+    if (dayOfWeek === 0) {
+      return res.json({ isHoliday: true, description: "တနင်္ဂနွေ ပိတ်ရက်", date: dateStr });
+    }
+
+    const r = await pool.query("SELECT * FROM lottery_holidays WHERE holiday_date = $1", [dateStr]);
+    if (r.rows.length > 0) {
+      return res.json({ isHoliday: true, description: r.rows[0].description, date: dateStr });
+    }
+
+    res.json({ isHoliday: false, date: dateStr });
+  } catch (err) {
+    res.status(500).json({ isHoliday: false, error: err.message });
+  }
+});
+
+// Public: upcoming holidays list (next 30 days)
+router.get("/upcoming-holidays", async (req, res) => {
+  try {
+    const r = await pool.query(
+      "SELECT * FROM lottery_holidays WHERE holiday_date >= CURRENT_DATE ORDER BY holiday_date ASC LIMIT 10"
+    );
+    res.json(r.rows);
+  } catch {
+    res.status(500).json([]);
+  }
+});
+
 module.exports = router;

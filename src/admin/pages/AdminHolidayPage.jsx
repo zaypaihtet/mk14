@@ -1,0 +1,190 @@
+import React, { useEffect, useState } from "react";
+import { Trash2, Plus, CalendarOff, AlertCircle, Info } from "lucide-react";
+import { api } from "../../utils/api";
+
+const fmt = (d) => {
+  if (!d) return "";
+  const dt = new Date(d + "T00:00:00Z");
+  return dt.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" });
+};
+
+const dayName = (d) => {
+  if (!d) return "";
+  const days = ["တနင်္ဂနွေ", "တနင်္လာ", "အင်္ဂါ", "ဗုဒ္ဓဟူး", "ကြာသပတေး", "သောကြာ", "စနေ"];
+  return days[new Date(d + "T00:00:00Z").getUTCDay()];
+};
+
+const isSunday = (d) => new Date(d + "T00:00:00Z").getUTCDay() === 0;
+
+const AdminHolidayPage = () => {
+  const [holidays, setHolidays] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [form, setForm] = useState({ holiday_date: "", description: "" });
+  const [adding, setAdding] = useState(false);
+  const [msg, setMsg] = useState("");
+
+  const load = () => {
+    api.admin.getHolidays()
+      .then(setHolidays)
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const showMsg = (m) => { setMsg(m); setTimeout(() => setMsg(""), 3000); };
+
+  const handleAdd = async (e) => {
+    e.preventDefault();
+    if (!form.holiday_date || !form.description) return;
+    if (isSunday(form.holiday_date)) {
+      showMsg("တနင်္ဂနွေနေ့ကို ထည့်မည်မဟုတ်ပါ (Auto-detect ဖြင့် ပိတ်ထားသည်)");
+      return;
+    }
+    setAdding(true);
+    try {
+      await api.admin.addHoliday(form);
+      setForm({ holiday_date: "", description: "" });
+      load();
+      showMsg("✓ ပိတ်ရက် ထည့်ပြီးပါပြီ");
+    } catch (err) { showMsg("Error: " + err.message); }
+    finally { setAdding(false); }
+  };
+
+  const handleDelete = async (id, desc) => {
+    if (!confirm(`"${desc}" ကို ဖျက်မည်လား?`)) return;
+    try {
+      await api.admin.deleteHoliday(id);
+      load();
+      showMsg("✓ ဖျက်ပြီးပါပြီ");
+    } catch (err) { showMsg("Error: " + err.message); }
+  };
+
+  const upcoming = holidays.filter(h => new Date(h.holiday_date) >= new Date(new Date().toISOString().slice(0, 10)));
+  const past     = holidays.filter(h => new Date(h.holiday_date) <  new Date(new Date().toISOString().slice(0, 10)));
+
+  return (
+    <div className="p-4 space-y-5 max-w-2xl mx-auto">
+      <div className="flex items-center gap-2 mb-2">
+        <CalendarOff className="h-5 w-5 text-red-500" />
+        <h1 className="text-xl font-bold text-gray-800">ပိတ်ရက် စီမံခန့်ခွဲမှု</h1>
+      </div>
+
+      {/* Info banner */}
+      <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 flex gap-2 text-sm text-blue-700">
+        <Info className="h-4 w-4 mt-0.5 shrink-0" />
+        <div>
+          <b>Auto-detect</b> — <b>တနင်္ဂနွေ</b> နေ့များကို အလိုအလျောက် ပိတ်ရက်အဖြစ် သတ်မှတ်သည်။
+          အောက်ပါ ဇယားတွင် မြန်မာ့အများပြည်သူ ပိတ်ရက်များ ထည့်သွင်းပါ။
+          ပိတ်ရက်တွင် 2D နှင့် 3D ထိုးခွင့် ပိတ်သွားမည်ဖြစ်သည်။
+        </div>
+      </div>
+
+      {/* Success/Error message */}
+      {msg && (
+        <div className={`text-center text-sm py-2 px-3 rounded-lg ${msg.startsWith("Error") || msg.startsWith("တနင်") ? "bg-red-100 text-red-700" : "bg-green-100 text-green-700"}`}>
+          {msg}
+        </div>
+      )}
+
+      {/* Add holiday form */}
+      <form onSubmit={handleAdd} className="bg-white rounded-2xl shadow-sm border p-4 space-y-3">
+        <h2 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+          <Plus className="h-4 w-4 text-green-600" /> ပိတ်ရက် ထည့်မည်
+        </h2>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="text-xs text-gray-500 mb-1 block">ရက်စွဲ</label>
+            <input
+              type="date"
+              value={form.holiday_date}
+              onChange={e => setForm(p => ({ ...p, holiday_date: e.target.value }))}
+              required
+              className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400"
+            />
+          </div>
+          <div>
+            <label className="text-xs text-gray-500 mb-1 block">ပိတ်ရက်အမည်</label>
+            <input
+              type="text"
+              value={form.description}
+              onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
+              placeholder="ဥပမာ — လွတ်လပ်ရေးနေ့"
+              required
+              className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400"
+            />
+          </div>
+        </div>
+        <button
+          type="submit"
+          disabled={adding}
+          className="w-full bg-red-500 text-white rounded-xl py-2.5 text-sm font-semibold hover:bg-red-600 disabled:opacity-50 transition-colors"
+        >
+          {adding ? "ထည့်နေသည်..." : "ပိတ်ရက် ထည့်မည်"}
+        </button>
+      </form>
+
+      {/* Upcoming holidays */}
+      <div className="bg-white rounded-2xl shadow-sm border p-4">
+        <h2 className="text-sm font-semibold text-gray-700 mb-3">
+          လာမည့် ပိတ်ရက်များ <span className="text-gray-400 font-normal">({upcoming.length})</span>
+        </h2>
+        {loading && <p className="text-gray-400 text-sm">Loading...</p>}
+        {!loading && upcoming.length === 0 && (
+          <p className="text-gray-400 text-sm text-center py-4">ပိတ်ရက် မရှိသေးပါ</p>
+        )}
+        <div className="space-y-2">
+          {upcoming.map(h => (
+            <div key={h.id} className="flex items-center justify-between bg-red-50 border border-red-100 rounded-xl px-3 py-2.5">
+              <div>
+                <div className="font-semibold text-sm text-gray-800">{h.description}</div>
+                <div className="text-xs text-gray-500 mt-0.5">
+                  {fmt(h.holiday_date)} · <span className="text-red-500">{dayName(h.holiday_date)}</span>
+                </div>
+              </div>
+              <button
+                onClick={() => handleDelete(h.id, h.description)}
+                className="text-red-400 hover:text-red-600 p-1.5 rounded-lg hover:bg-red-100 transition-colors"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Past holidays (collapsed) */}
+      {past.length > 0 && (
+        <div className="bg-white rounded-2xl shadow-sm border p-4">
+          <h2 className="text-sm font-semibold text-gray-500 mb-3">
+            ကန်တော့ ပိတ်ရက်များ <span className="text-gray-400 font-normal">({past.length})</span>
+          </h2>
+          <div className="space-y-2">
+            {past.map(h => (
+              <div key={h.id} className="flex items-center justify-between bg-gray-50 border border-gray-100 rounded-xl px-3 py-2.5">
+                <div>
+                  <div className="font-medium text-sm text-gray-500">{h.description}</div>
+                  <div className="text-xs text-gray-400">{fmt(h.holiday_date)} · {dayName(h.holiday_date)}</div>
+                </div>
+                <button
+                  onClick={() => handleDelete(h.id, h.description)}
+                  className="text-gray-300 hover:text-red-400 p-1.5 rounded-lg transition-colors"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Sunday auto-detect note */}
+      <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3 flex gap-2 text-sm text-yellow-800">
+        <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+        <span><b>တနင်္ဂနွေ</b> ပိတ်ရက်ကို ဤနေရာတွင် ထည့်ရန်မလိုပါ — System မှ အလိုအလျောက် စစ်ဆေးသည်။</span>
+      </div>
+    </div>
+  );
+};
+
+export default AdminHolidayPage;
