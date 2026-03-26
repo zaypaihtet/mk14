@@ -1,9 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { FileImage, NotepadText } from "lucide-react";
 import DepositHeader from "../components/DepositHeader";
 import Header from "../components/Header";
 import { useNavigate, useLocation } from "react-router";
-import { api } from "../utils/api";
+import { api, apiFetch } from "../utils/api";
 
 const DepositForm = () => {
   const navigate = useNavigate();
@@ -15,10 +15,26 @@ const DepositForm = () => {
   const [amount, setAmount] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [appConfig, setAppConfig] = useState({});
+
+  useEffect(() => {
+    apiFetch("/api/config")
+      .then((r) => r.json())
+      .then(setAppConfig)
+      .catch(() => {});
+  }, []);
 
   const accounts = {
-    wavemoney: { img: "/images/wavemoney.jpg", number: "099000000", name: "Kyaw Kyaw" },
-    kpay: { img: "/images/kpay.jpg", number: "097700000", name: "Aung Aung" },
+    wavemoney: {
+      img: "/images/wavemoney.jpg",
+      number: appConfig.wave_number || "099000000",
+      name: appConfig.wave_name || "Kyaw Kyaw",
+    },
+    kpay: {
+      img: "/images/kpay.jpg",
+      number: appConfig.kpay_number || "097700000",
+      name: appConfig.kpay_name || "Aung Aung",
+    },
   };
   const account = accounts[method] || accounts.wavemoney;
 

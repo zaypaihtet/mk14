@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Save, Clock, Calendar, Eye, Zap, Phone, Image, AlignLeft, Trash2, Plus, MessageSquare } from "lucide-react";
+import { Save, Clock, Calendar, Eye, Zap, Phone, Image, AlignLeft, Trash2, Plus, MessageSquare, CreditCard } from "lucide-react";
 import { api } from "../../utils/api";
 
 const DAYS = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
@@ -38,6 +38,10 @@ const AdminSettings = () => {
     "marquee_text": "",
     "popup_title": "အထူးကမ်းလှမ်းချက်!",
     "popup_text": "ယနေ့ပဲ စတင်ကစားပါ!",
+    "wave_number": "",
+    "wave_name": "",
+    "kpay_number": "",
+    "kpay_name": "",
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -237,6 +241,41 @@ const AdminSettings = () => {
               className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400" />
           </div>
         ))}
+      </div>
+
+      {/* Wave / KPay Payment Numbers */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-4">
+        <div className="flex items-center gap-2 mb-1">
+          <CreditCard className="h-5 w-5 text-purple-600" />
+          <h2 className="text-lg font-semibold">Wave / KPay နံပါတ်ပြင်ဆင်ရန်</h2>
+        </div>
+        <p className="text-xs text-gray-500">ငွေဖြည့် page မှာ ပြသသော account နံပါတ်နှင့် အမည်</p>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Wave နံပါတ်</label>
+            <input type="text" value={config["wave_number"] || ""} onChange={(e) => set("wave_number", e.target.value)}
+              placeholder="09XXXXXXXXX"
+              className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Wave အမည်</label>
+            <input type="text" value={config["wave_name"] || ""} onChange={(e) => set("wave_name", e.target.value)}
+              placeholder="U Kyaw Kyaw"
+              className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">KPay နံပါတ်</label>
+            <input type="text" value={config["kpay_number"] || ""} onChange={(e) => set("kpay_number", e.target.value)}
+              placeholder="09XXXXXXXXX"
+              className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">KPay အမည်</label>
+            <input type="text" value={config["kpay_name"] || ""} onChange={(e) => set("kpay_name", e.target.value)}
+              placeholder="U Aung Aung"
+              className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400" />
+          </div>
+        </div>
       </div>
 
       {/* Marquee Text */}
