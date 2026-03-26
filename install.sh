@@ -287,19 +287,15 @@ fuser -k "${BACKEND_PORT}/tcp" > /dev/null 2>&1 || true
 sleep 1
 success "Port ${BACKEND_PORT} အဆင်သင့်ဖြစ်သည်"
 
-# Remove ALL pm2 processes that match "twodbet" (any name/id variant)
-EXISTING=$(pm2 list 2>/dev/null | grep -oP "twodbet\S*" | sort -u || true)
-if [ -n "$EXISTING" ]; then
-  info "PM2 process အဟောင်းများ ဖျက်နေသည်..."
-  pm2 delete all 2>/dev/null || true
-  sleep 1
-  success "PM2 process အဟောင်းများ ဖျက်ပြီး"
-fi
+# Remove ALL pm2 processes (delete = env fully reset on next start)
+info "PM2 process အဟောင်းများ ရှင်းနေသည်..."
+pm2 delete all > /dev/null 2>&1 || true
+sleep 1
 
-# Start fresh with .env vars loaded
-info "PM2 process အသစ် ဆောက်နေသည်..."
-if OUT=$(env $(grep -v '^#' "$ENV_FILE" | xargs) \
-  pm2 start backend/src/app.js \
+# Start fresh — explicitly load .env so pm2 always picks up correct vars
+info "PM2 process အသစ် ဆောက်နေသည် (.env vars load လုပ်ပြီး)..."
+ENV_VARS=$(grep -v '^#' "$ENV_FILE" | grep -v '^\s*$' | xargs)
+if OUT=$(env $ENV_VARS pm2 start "$PROJECT_DIR/backend/src/app.js" \
     --name twodbet \
     --log ~/.pm2/logs/twodbet-out.log \
     --error ~/.pm2/logs/twodbet-error.log 2>&1); then

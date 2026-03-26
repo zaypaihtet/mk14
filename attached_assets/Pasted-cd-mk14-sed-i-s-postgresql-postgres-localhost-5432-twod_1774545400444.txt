@@ -1,0 +1,41 @@
+cd ~/mk14
+sed -i 's|postgresql://postgres@localhost:5432/twodbet|postgresql://postgres:twodbet123@localhost:5432/twodbet|' .env
+pm2 restart twodbet --update-env
+pm2 log 0 --lines 5
+ALTER ROLE
+[PM2] Applying action restartProcessId on app [twodbet](ids: [ 0 ])
+[PM2] [twodbet](0) ✓
+┌────┬────────────┬─────────────┬─────────┬─────────┬──────────┬────────┬──────┬───────────┬──────────┬──────────┬──────────┬──────────┐
+│ id │ name       │ namespace   │ version │ mode    │ pid      │ uptime │ ↺    │ status    │ cpu      │ mem      │ user     │ watching │
+├────┼────────────┼─────────────┼─────────┼─────────┼──────────┼────────┼──────┼───────────┼──────────┼──────────┼──────────┼──────────┤
+│ 0  │ twodbet    │ default     │ 1.0.0   │ fork    │ 744962   │ 0s     │ 1    │ online    │ 0%       │ 27.4mb   │ root     │ disabled │
+└────┴────────────┴─────────────┴─────────┴─────────┴──────────┴────────┴──────┴───────────┴──────────┴──────────┴──────────┴──────────┘
+[TAILING] Tailing last 5 lines for [0] process (change the value with --lines option)
+/root/.pm2/logs/twodbet-out.log last 5 lines:
+0|twodbet  | [AutoPublish 2D] Error: password authentication failed for user "postgres"
+0|twodbet  | [AutoPublish 3D] Error: password authentication failed for user "postgres"
+0|twodbet  | [AutoPublish 2D] Error: password authentication failed for user "postgres"
+0|twodbet  | TwoDbet Backend running on http://localhost:8000
+0|twodbet  | [AutoPublish] Scheduler started — checking every 60s
+
+/root/.pm2/logs/twodbet-error.log last 5 lines:
+0|twodbet  | [AutoPublish 2D] Error: password authentication failed for user "postgres"
+0|twodbet  | [AutoPublish 2D] Error: password authentication failed for user "postgres"
+0|twodbet  | [AutoPublish 3D] Error: password authentication failed for user "postgres"
+0|twodbet  | [AutoPublish 2D] Error: password authentication failed for user "postgres"
+0|twodbet  | [AutoPublish 2D] Error: password authentication failed for user "postgres"
+
+0|twodbet  | TwoDbet Backend running on http://localhost:8000
+0|twodbet  | [AutoPublish] Scheduler started — checking every 60s
+0|twodbet  | [AutoPublish 2D] Error: password authentication failed for user "postgres"
+0|twodbet  | [AutoPublish 3D] Error: password authentication failed for user "postgres"
+^C
+root@5kserver:~/mk14# cat .env
+# Database
+DATABASE_URL=postgresql://postgres:Admin%402d!@localhost:5432/twodbet
+# Backend
+BACKEND_PORT=8000
+JWT_SECRET=080cf4c37f0f6280a8fdf4c867aed66ba55cd0e2e53f860fb9f2b8bc8962d27a
+APP_HEADER_SECRET=6230fb95f27b1b92aa6e3a670563e71f26f9c70c639e4aba8886deb279e32029
+NODE_ENV=production
+root@5kserver:~/mk14#
