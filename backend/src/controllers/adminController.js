@@ -182,16 +182,25 @@ const publishResult2D = async (req, res) => {
       "SELECT * FROM lottery_bets_2d WHERE bet_date = $1 AND session = $2 AND status = 'pending'",
       [result_date, session]
     );
+    let winnersCount = 0;
     for (const bet of bets.rows) {
-      const numbers = bet.numbers;
-      const won = numbers.includes(result_number);
-      await pool.query("UPDATE lottery_bets_2d SET status = $1 WHERE id = $2", [won ? "won" : "lost", bet.id]);
+      const numbers = Array.isArray(bet.numbers) ? bet.numbers : JSON.parse(bet.numbers || "[]");
+      const won = numbers.includes(result_number.padStart(2, "0")) || numbers.includes(result_number);
+      // Use multiplier stored at bet time (so admin changes don't affect already-placed bets)
+      const multiplier = bet.multiplier || 85;
       if (won) {
-        const winAmount = bet.amount * 85;
+        const winAmount = bet.amount * multiplier;
+        await pool.query(
+          "UPDATE lottery_bets_2d SET status = 'won', win_amount = $1 WHERE id = $2",
+          [winAmount, bet.id]
+        );
         await pool.query("UPDATE users SET balance = balance + $1 WHERE id = $2", [winAmount, bet.user_id]);
+        winnersCount++;
+      } else {
+        await pool.query("UPDATE lottery_bets_2d SET status = 'lost' WHERE id = $1", [bet.id]);
       }
     }
-    res.json({ message: "ရလဒ် ထုတ်ပြန်ပြီးပါပြီ" });
+    res.json({ message: `ရလဒ် ထုတ်ပြန်ပြီးပါပြီ — နိုင်သူ ${winnersCount} ဦး` });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Server error" });
@@ -210,16 +219,24 @@ const publishResult3D = async (req, res) => {
       "SELECT * FROM lottery_bets_3d WHERE bet_date = $1 AND status = 'pending'",
       [result_date]
     );
+    let winnersCount = 0;
     for (const bet of bets.rows) {
-      const numbers = bet.numbers;
+      const numbers = Array.isArray(bet.numbers) ? bet.numbers : JSON.parse(bet.numbers || "[]");
       const won = numbers.includes(result_number);
-      await pool.query("UPDATE lottery_bets_3d SET status = $1 WHERE id = $2", [won ? "won" : "lost", bet.id]);
+      const multiplier = bet.multiplier || 600;
       if (won) {
-        const winAmount = bet.amount * 600;
+        const winAmount = bet.amount * multiplier;
+        await pool.query(
+          "UPDATE lottery_bets_3d SET status = 'won', win_amount = $1 WHERE id = $2",
+          [winAmount, bet.id]
+        );
         await pool.query("UPDATE users SET balance = balance + $1 WHERE id = $2", [winAmount, bet.user_id]);
+        winnersCount++;
+      } else {
+        await pool.query("UPDATE lottery_bets_3d SET status = 'lost' WHERE id = $1", [bet.id]);
       }
     }
-    res.json({ message: "3D ရလဒ် ထုတ်ပြန်ပြီးပါပြီ" });
+    res.json({ message: `3D ရလဒ် ထုတ်ပြန်ပြီးပါပြီ — နိုင်သူ ${winnersCount} ဦး` });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Server error" });

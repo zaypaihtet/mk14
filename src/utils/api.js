@@ -44,8 +44,8 @@ export const api = {
   getNotifications: () => request("GET", "/notifications"),
   markNotificationRead: (id) => request("PUT", `/notifications/${id}/read`),
 
-  // Config (public)
-  getConfig: () => request("GET", "/admin/config"),
+  // Config (public - no auth required)
+  getConfig: () => request("GET", "/config"),
 
   // Admin
   admin: {
@@ -67,6 +67,8 @@ export const api = {
     getNotifications: () => request("GET", "/admin/notifications"),
     sendNotification: (data) => request("POST", "/notifications", data),
     deleteNotification: (id) => request("DELETE", `/admin/notifications/${id}`),
+    uploadBanner: (formData) => request("POST", "/admin/upload/banner", formData, true),
+    uploadLogo: (formData) => request("POST", "/admin/upload/logo", formData, true),
   },
 };
 

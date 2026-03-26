@@ -1,11 +1,23 @@
 import { Download, User, LogOut } from "lucide-react";
 import { Link, useNavigate } from "react-router";
-import { isLoggedIn, removeToken } from "../utils/api";
+import { isLoggedIn, removeToken, api } from "../utils/api";
+import { useEffect, useState } from "react";
 
 const Header = () => {
-  const navigate = useNavigate();
-  const loggedIn = isLoggedIn();
-  const user = loggedIn ? JSON.parse(localStorage.getItem("user") || "{}") : null;
+  const navigate  = useNavigate();
+  const loggedIn  = isLoggedIn();
+  const user      = loggedIn ? JSON.parse(localStorage.getItem("user") || "{}") : null;
+  const [siteName, setSiteName]   = useState("KM Fourteen");
+  const [logoUrl, setLogoUrl]     = useState("");
+
+  useEffect(() => {
+    api.getConfig()
+      .then((data) => {
+        if (data?.site_name) setSiteName(data.site_name);
+        if (data?.logo_url)  setLogoUrl(data.logo_url);
+      })
+      .catch(() => {});
+  }, []);
 
   const handleLogout = () => {
     removeToken();
@@ -13,16 +25,18 @@ const Header = () => {
     navigate("/");
   };
 
+  const defaultLogoUrl = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTkTlQyP-8xxuQhHXyv0-N46Xbs6jTcD8LCfA&s";
+
   return (
     <header className="bg-white border-b border-gray-200 sticky top-0 z-40 max-w-[500px] mx-auto">
       <div className="flex items-center justify-between p-4">
         <Link to="/" className="flex items-center space-x-3">
           <img
-            src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTkTlQyP-8xxuQhHXyv0-N46Xbs6jTcD8LCfA&s"
+            src={logoUrl || defaultLogoUrl}
             alt="Logo"
-            className="w-10 h-10 rounded-full"
+            className="w-10 h-10 rounded-full object-cover"
           />
-          <h1 className="text-lg font-bold text-blue-600">KM Fourteen</h1>
+          <h1 className="text-lg font-bold text-blue-600">{siteName}</h1>
         </Link>
         {loggedIn ? (
           <div className="flex items-center gap-2">

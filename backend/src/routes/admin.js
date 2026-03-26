@@ -6,6 +6,7 @@ const {
   getBets2D, publishResult2D, publishResult3D,
 } = require("../controllers/adminController");
 const { authenticate, adminOnly } = require("../middleware/auth");
+const upload = require("../middleware/upload");
 
 router.use(authenticate, adminOnly);
 
@@ -47,6 +48,35 @@ router.put("/config", async (req, res) => {
     }
     res.json({ message: "Config updated" });
   } catch (err) {
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// Banner / Logo upload
+router.post("/upload/banner", upload.single("file"), async (req, res) => {
+  if (!req.file) return res.status(400).json({ message: "ဖိုင် မတင်မိပါ" });
+  const url = `/uploads/${req.file.filename}`;
+  try {
+    await pool.query(
+      "INSERT INTO lottery_config (key, value) VALUES ('banner_url', $1) ON CONFLICT (key) DO UPDATE SET value = $1, updated_at = NOW()",
+      [url]
+    );
+    res.json({ url });
+  } catch {
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+router.post("/upload/logo", upload.single("file"), async (req, res) => {
+  if (!req.file) return res.status(400).json({ message: "ဖိုင် မတင်မိပါ" });
+  const url = `/uploads/${req.file.filename}`;
+  try {
+    await pool.query(
+      "INSERT INTO lottery_config (key, value) VALUES ('logo_url', $1) ON CONFLICT (key) DO UPDATE SET value = $1, updated_at = NOW()",
+      [url]
+    );
+    res.json({ url });
+  } catch {
     res.status(500).json({ message: "Server error" });
   }
 });
