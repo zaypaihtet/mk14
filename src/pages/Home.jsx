@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import LotteryCarousel from "../components/LotteryCarousel";
 import Header from "../components/Header";
 import LotteryResults from "../components/LotteryResults";
@@ -10,9 +10,19 @@ import ContactComponent from "../components/ContactComponent";
 import Winners2DSection from "../components/Winners2DSection";
 import { isLoggedIn } from "../utils/api";
 
+const DEFAULT_MARQUEE = "Myanmar2D 85ဆ၊ Myanmar3D 600ဆ၊ Dubai2D 85ဆ — ရောင်းပိတ်ချိန် မနက် 11:58 AM၊ ညနေ 3:58 PM";
+
 const Home = () => {
   const [showNotificationModal, setShowNotificationModal] = useState(false);
+  const [marqueeText, setMarqueeText] = useState(DEFAULT_MARQUEE);
   const loggedIn = isLoggedIn();
+
+  useEffect(() => {
+    fetch("/api/config")
+      .then((r) => r.json())
+      .then((d) => { if (d?.marquee_text) setMarqueeText(d.marquee_text); })
+      .catch(() => {});
+  }, []);
 
   return (
     <div className="min-h-screen bg-gray-200 flex justify-center">
@@ -41,16 +51,8 @@ const Home = () => {
         <div className="bg-blue-600 text-white p-4">
           <div className="overflow-hidden whitespace-nowrap">
             <div className="inline-flex animate-marquee">
-              <p className="text-sm font-medium px-8">
-                Myanmar2D 85ဆ၊ Myanmar3D 600ဆ၊ တွတ်ပတ်လည် 10ဆ၊ Dubai2D 85ဆ၊
-                Myanmar2D ရောင်းပိတ်ချိန် - နံနက် 11:58 AM၊ ညနေ အရောင်းပိတ်ချိန်
-                3:58 PM
-              </p>
-              <p className="text-sm font-medium px-8" aria-hidden="true">
-                Myanmar2D 85ဆ၊ Myanmar3D 600ဆ၊ တွတ်ပတ်လည် 10ဆ၊ Dubai2D 85ဆ၊
-                Myanmar2D ရောင်းပိတ်ချိန် - နံနက် 11:58 AM၊ ညနေ အရောင်းပိတ်ချိန်
-                3:58 PM
-              </p>
+              <p className="text-sm font-medium px-8">{marqueeText}</p>
+              <p className="text-sm font-medium px-8" aria-hidden="true">{marqueeText}</p>
             </div>
           </div>
         </div>

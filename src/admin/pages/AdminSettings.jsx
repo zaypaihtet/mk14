@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Save, Clock, Calendar, Eye, Zap, Phone, Image, Globe } from "lucide-react";
+import { Save, Clock, Calendar, Eye, Zap, Phone, Image, AlignLeft } from "lucide-react";
 import { api } from "../../utils/api";
 
 const DAYS = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
@@ -35,6 +35,7 @@ const AdminSettings = () => {
     "contact_viber": "",
     "contact_phone": "",
     "site_name": "KM Fourteen",
+    "marquee_text": "",
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -221,6 +222,27 @@ const AdminSettings = () => {
         ))}
       </div>
 
+      {/* Marquee Text */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-4">
+        <div className="flex items-center gap-2 mb-1">
+          <AlignLeft className="h-5 w-5 text-blue-600" />
+          <h2 className="text-lg font-semibold">Marquee ကြော်ငြာစာသား</h2>
+        </div>
+        <p className="text-xs text-gray-500">Home page အောက်ပိုင်းရှိ အပြာရောင် ပိတ်ဆောင်မှာ ပြသသော ရွေ့လျားသောစာ</p>
+        <textarea
+          rows={3}
+          value={config["marquee_text"] || ""}
+          onChange={(e) => set("marquee_text", e.target.value)}
+          placeholder="Myanmar2D 85ဆ၊ Myanmar3D 600ဆ — ရောင်းပိတ်ချိန် မနက် 11:58 AM"
+          className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none"
+        />
+        {config["marquee_text"] && (
+          <div className="bg-blue-600 rounded-lg px-4 py-2 overflow-hidden">
+            <p className="text-white text-xs truncate">Preview: {config["marquee_text"]}</p>
+          </div>
+        )}
+      </div>
+
       {/* Banner & Logo Upload */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-6">
         <div className="flex items-center gap-2 mb-1">
@@ -230,7 +252,8 @@ const AdminSettings = () => {
 
         {/* Banner */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Popup Banner ပုံ</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Banner ပုံ</label>
+          <p className="text-xs text-gray-400 mb-2">Home page slider (ပထမဆုံးကတ်) + Popup modal နှစ်ခုလုံးမှာ ပြသည်</p>
           {bannerPreview && (
             <img src={bannerPreview} alt="Banner" className="w-full max-h-40 object-cover rounded-xl mb-2 border" />
           )}
