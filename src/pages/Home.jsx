@@ -7,6 +7,7 @@ import AdsModal from "../components/AdsModal";
 import NotificationModal from "../components/NotificationModal";
 import { Link } from "react-router";
 import ContactComponent from "../components/ContactComponent";
+import Winners2DSection from "../components/Winners2DSection";
 import { isLoggedIn } from "../utils/api";
 
 const Home = () => {
@@ -56,6 +57,7 @@ const Home = () => {
 
         <main className="p-4 space-y-6">
           <LotteryResults />
+          <Winners2DSection />
           <section className="bg-gray-100 rounded-xl">
             <ContactComponent />
           </section>

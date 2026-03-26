@@ -43,6 +43,10 @@ export const api = {
   // Notifications
   getNotifications: () => request("GET", "/notifications"),
   markNotificationRead: (id) => request("PUT", `/notifications/${id}/read`),
+  getNotificationCount: () => request("GET", "/notifications/count"),
+
+  // Winners
+  getWinners2D: () => request("GET", "/lottery/winners/2d"),
 
   // Config (public - no auth required)
   getConfig: () => request("GET", "/config"),

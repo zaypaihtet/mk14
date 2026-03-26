@@ -1,8 +1,19 @@
 import React, { useState, useEffect } from "react";
-import { ArrowLeft, Wallet, History, CheckCircle2, XCircle } from "lucide-react";
+import { ArrowLeft, Wallet, History, CheckCircle2, XCircle, Clock } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import TwoDQuickPickModal from "../components/lottery2d-betting/TwoDQuickPickModal";
 import { api, isLoggedIn } from "../utils/api";
+
+// Parse "HH:MM" (24h) to total minutes from midnight
+const toMins = (timeStr = "00:00") => {
+  const [h, m] = timeStr.split(":").map(Number);
+  return h * 60 + (m || 0);
+};
+
+const nowMins = () => {
+  const d = new Date();
+  return d.getHours() * 60 + d.getMinutes();
+};
 
 const LotteryTwoDBetting = () => {
   const navigate = useNavigate();
@@ -21,11 +32,42 @@ const LotteryTwoDBetting = () => {
   const [showQuickPickModal, setShowQuickPickModal] = useState(false);
   const [balance, setBalance]       = useState(null);
   const [placing, setPlacing]       = useState(false);
-  const [toast, setToast]           = useState(null); // {type:'success'|'error', msg}
+  const [toast, setToast]           = useState(null);
 
-  // Fetch real wallet balance
+  // Session close times from config
+  const [morningClose, setMorningClose] = useState("11:58"); // "HH:MM" 24h
+  const [eveningClose, setEveningClose] = useState("15:58");
+  const [configLoaded, setConfigLoaded] = useState(false);
+
+  // Compute open/closed state (updates every minute)
+  const [now, setNow] = useState(nowMins());
+  useEffect(() => {
+    const id = setInterval(() => setNow(nowMins()), 60000);
+    return () => clearInterval(id);
+  }, []);
+
+  const morningOpen  = now < toMins(morningClose);
+  const eveningOpen  = now >= toMins(morningClose) && now < toMins(eveningClose);
+  const allClosed    = now >= toMins(eveningClose);
+
+  // Auto-select available session
+  useEffect(() => {
+    if (!configLoaded) return;
+    if (morningOpen) setSession("morning");
+    else if (eveningOpen) setSession("evening");
+  }, [configLoaded, morningOpen, eveningOpen]);
+
+  // Fetch config (close times) + wallet balance
   useEffect(() => {
     if (!isLoggedIn()) return;
+    api.getConfig()
+      .then((cfg) => {
+        if (cfg["2d_morning_close"]) setMorningClose(cfg["2d_morning_close"]);
+        if (cfg["2d_evening_close"]) setEveningClose(cfg["2d_evening_close"]);
+        setConfigLoaded(true);
+      })
+      .catch(() => setConfigLoaded(true));
+
     api.getBalance()
       .then((d) => setBalance(d.balance ?? d))
       .catch(() => {});
@@ -138,20 +180,47 @@ const LotteryTwoDBetting = () => {
 
         {/* Session selector */}
         <div className="px-4 mb-3">
-          <div className="flex rounded-xl overflow-hidden border border-white/30">
-            <button
-              onClick={() => setSession("morning")}
-              className={`flex-1 py-2 text-sm font-medium transition-colors ${session === "morning" ? "bg-white text-blue-700" : "bg-white/20 text-white"}`}
-            >
-              မနက် (12:00 PM)
-            </button>
-            <button
-              onClick={() => setSession("evening")}
-              className={`flex-1 py-2 text-sm font-medium transition-colors ${session === "evening" ? "bg-white text-blue-700" : "bg-white/20 text-white"}`}
-            >
-              ညနေ (4:30 PM)
-            </button>
-          </div>
+          {allClosed ? (
+            <div className="flex items-center justify-center gap-2 bg-red-500/90 rounded-xl py-3">
+              <Clock className="h-4 w-4 text-white" />
+              <span className="text-white text-sm font-semibold">ယနေ့ ထိုးကြေး ရောင်းချိန် ပြည့်ပြီ</span>
+            </div>
+          ) : (
+            <div className="flex rounded-xl overflow-hidden border border-white/30">
+              <button
+                onClick={() => morningOpen && setSession("morning")}
+                disabled={!morningOpen}
+                className={`flex-1 py-2.5 text-sm font-medium transition-colors relative ${
+                  session === "morning" && morningOpen
+                    ? "bg-white text-blue-700"
+                    : morningOpen
+                    ? "bg-white/20 text-white hover:bg-white/30"
+                    : "bg-white/10 text-white/40 cursor-not-allowed"
+                }`}
+              >
+                မနက် (12:00 PM)
+                {!morningOpen && (
+                  <span className="block text-[10px] text-red-300">ပိတ်ပြီ</span>
+                )}
+              </button>
+              <button
+                onClick={() => eveningOpen && setSession("evening")}
+                disabled={!eveningOpen}
+                className={`flex-1 py-2.5 text-sm font-medium transition-colors relative ${
+                  session === "evening" && eveningOpen
+                    ? "bg-white text-blue-700"
+                    : eveningOpen
+                    ? "bg-white/20 text-white hover:bg-white/30"
+                    : "bg-white/10 text-white/40 cursor-not-allowed"
+                }`}
+              >
+                ညနေ (4:30 PM)
+                {!eveningOpen && !allClosed && (
+                  <span className="block text-[10px] text-yellow-200">မဖွင့်ရသေး</span>
+                )}
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Bet amount */}
@@ -253,10 +322,12 @@ const LotteryTwoDBetting = () => {
       <div className="fixed bottom-0 left-0 right-0 max-w-[500px] mx-auto p-4 bg-gradient-to-t from-blue-700 to-transparent pt-6">
         <button
           onClick={handlePlaceBet}
-          disabled={selectedNumbers.length === 0 || placing}
+          disabled={selectedNumbers.length === 0 || placing || allClosed}
           className="w-full bg-white text-blue-700 font-bold py-4 rounded-2xl shadow-xl disabled:opacity-50 disabled:cursor-not-allowed text-base hover:bg-blue-50 transition-colors"
         >
-          {placing
+          {allClosed
+            ? "ရောင်းချိန် ပြည့်ပြီ"
+            : placing
             ? "ထိုးနေသည်..."
             : selectedNumbers.length === 0
             ? "နံပါတ် ရွေးပါ"
