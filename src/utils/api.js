@@ -43,7 +43,8 @@ export const api = {
   // Notifications
   getNotifications: () => request("GET", "/notifications"),
   markNotificationRead: (id) => request("PUT", `/notifications/${id}/read`),
-  getNotificationCount: () => request("GET", "/notifications/count"),
+  markAllRead: () => request("PUT", "/notifications/read-all"),
+  getNotificationCount: (since) => request("GET", `/notifications/count${since ? `?since=${encodeURIComponent(since)}` : ""}`),
 
   // Winners
   getWinners2D: () => request("GET", "/lottery/winners/2d"),

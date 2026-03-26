@@ -10,16 +10,17 @@ const BottomNavigation = () => {
   useEffect(() => {
     if (!isLoggedIn()) return;
     const fetchCount = () => {
-      api.getNotificationCount()
+      const since = localStorage.getItem("notif_last_seen");
+      api.getNotificationCount(since)
         .then((d) => setUnread(d.count || 0))
         .catch(() => {});
     };
     fetchCount();
-    const interval = setInterval(fetchCount, 30000); // refresh every 30s
+    const interval = setInterval(fetchCount, 30000);
     return () => clearInterval(interval);
   }, []);
 
-  // Reset count when navigating to notifications
+  // When navigating to notifications, clear the badge immediately
   useEffect(() => {
     if (location.pathname === "/notifications") setUnread(0);
   }, [location.pathname]);

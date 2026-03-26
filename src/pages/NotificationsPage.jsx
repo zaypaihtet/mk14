@@ -10,6 +10,11 @@ const NotificationsPage = () => {
 
   useEffect(() => {
     if (isLoggedIn()) {
+      // Save last_seen timestamp so the badge count resets permanently
+      localStorage.setItem("notif_last_seen", new Date().toISOString());
+      // Mark all user-specific notifications as read on the server
+      api.markAllRead().catch(() => {});
+
       api.getNotifications()
         .then((data) => setNotifications(data))
         .catch(() => setNotifications([]))
