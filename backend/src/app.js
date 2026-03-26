@@ -1,10 +1,9 @@
 require("dotenv").config({ path: require("path").join(__dirname, "../../.env") });
 const express = require("express");
 const cors = require("cors");
-const helmet = require("helmet");
 const path = require("path");
 
-const { generalLimiter, authLimiter, betLimiter, requireAppHeader, sanitizeBody } = require("./middleware/security");
+const { requireAppHeader, sanitizeBody } = require("./middleware/security");
 
 const authRoutes = require("./routes/auth");
 const walletRoutes = require("./routes/wallet");
@@ -14,12 +13,6 @@ const adminRoutes = require("./routes/admin");
 
 const app = express();
 const PORT = process.env.BACKEND_PORT || 8000;
-
-// ── Security headers (helmet) ───────────────────────────────────────────────
-app.use(helmet({
-  contentSecurityPolicy: false,
-  crossOriginResourcePolicy: { policy: "cross-origin" },
-}));
 
 // Hide server info
 app.disable("x-powered-by");
@@ -49,9 +42,6 @@ app.use(express.urlencoded({ extended: true, limit: "2mb" }));
 // ── Input sanitization ─────────────────────────────────────────────────────
 app.use(sanitizeBody);
 
-// ── General rate limit for all API routes ─────────────────────────────────
-app.use("/api", generalLimiter);
-
 // ── Static uploads (no auth/header required for image display) ────────────
 app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
 
@@ -74,14 +64,11 @@ app.get("/api/config", requireAppHeader, async (req, res) => {
 });
 
 // ── Apply app-header guard + strict rate limits per route group ────────────
-app.use("/api/auth", requireAppHeader, authLimiter, authRoutes);
+app.use("/api/auth", requireAppHeader, authRoutes);
 app.use("/api/wallet", requireAppHeader, walletRoutes);
 app.use("/api/lottery", requireAppHeader, lotteryRoutes);
 app.use("/api/notifications", requireAppHeader, notificationRoutes);
 app.use("/api/admin", requireAppHeader, adminRoutes);
-
-// ── Extra bet-specific rate limit on bet endpoints ────────────────────────
-app.use("/api/lottery/bet", betLimiter);
 
 // ── 404 handler ───────────────────────────────────────────────────────────
 app.use((req, res) => res.status(404).json({ message: "Not found" }));
