@@ -119,13 +119,58 @@ else
 fi
 
 # DB_NAME / DB_USER / DB_HOST fallback from URL
-if [ -z "$DB_NAME" ]; then
-  DB_NAME=$(echo "$DB_URL" | grep -oP '(?<=/)[^?/]+$' || echo "twodbet")
+if [ -z "${DB_NAME:-}" ]; then
+  DB_NAME=$(echo "$DB_URL" | grep -oP '(?<=/)[^?/]+$' 2>/dev/null || echo "twodbet")
 fi
-if [ -z "$DB_USER" ]; then
-  DB_USER=$(echo "$DB_URL" | grep -oP '(?<=//)[^:@]+' || echo "postgres")
+if [ -z "${DB_USER:-}" ]; then
+  DB_USER=$(echo "$DB_URL" | grep -oP '(?<=//)[^:@]+' 2>/dev/null || echo "postgres")
+fi
+if [ -z "${DB_PASS:-}" ]; then
+  DB_PASS=$(echo "$DB_URL" | grep -oP '(?<=:)[^@]+(?=@)' 2>/dev/null || echo "")
 fi
 DB_HOST="${DB_HOST:-localhost}"
+
+# ── Auto-fix DB connection (password auth) ────────────────────
+echo ""
+echo -e "${CYAN}── Database Connection Test ─────────────────────${NC}"
+
+info "Database connection စစ်ဆေးနေသည်..."
+
+db_connect_ok=false
+# URL ဖြင့်သာ test — backend သုံးသောနည်းလမ်းနှင့် တူညီရမည်
+if psql "$DB_URL" -c "SELECT 1;" > /dev/null 2>&1; then
+  db_connect_ok=true
+fi
+
+if [ "$db_connect_ok" = false ]; then
+  warn "Database connection မရပါ — password ပြဿနာ ဖြေရှင်းနေသည်..."
+
+  # Auto-generate a secure password and set it on postgres user
+  AUTO_PG_PASS=$(openssl rand -base64 16 | tr -dc 'a-zA-Z0-9' | head -c 16)
+  info "PostgreSQL password အသစ် သတ်မှတ်နေသည်..."
+
+  if sudo -u postgres psql -c "ALTER USER ${DB_USER} WITH PASSWORD '${AUTO_PG_PASS}';" > /dev/null 2>&1; then
+    success "PostgreSQL password သတ်မှတ်ပြီး"
+
+    # Update DATABASE_URL in .env
+    NEW_DB_URL="postgresql://${DB_USER}:${AUTO_PG_PASS}@${DB_HOST}:5432/${DB_NAME}"
+    sed -i "s|^DATABASE_URL=.*|DATABASE_URL=${NEW_DB_URL}|" "$ENV_FILE"
+    DB_URL="$NEW_DB_URL"
+    DB_PASS="$AUTO_PG_PASS"
+
+    # Verify
+    if psql "$DB_URL" -c "SELECT 1;" > /dev/null 2>&1; then
+      success "Database connection အောင်မြင်သည် ✓"
+      db_connect_ok=true
+    else
+      error "Database connection မရသေးပါ — pg_hba.conf စစ်ဆေးပါ"
+    fi
+  else
+    error "PostgreSQL password မသတ်မှတ်နိုင်ပါ — 'sudo -u postgres psql' အသုံးပြုနိုင်မှု စစ်ဆေးပါ"
+  fi
+else
+  success "Database connection အောင်မြင်သည် ✓"
+fi
 
 # ── 4. PostgreSQL database ────────────────────────────────────
 echo ""
