@@ -63,7 +63,7 @@ const AdminDepositPage = () => {
                       </div>
                     )}
                     {d.receipt_image && (
-                      <a href={`http://localhost:8000${d.receipt_image}`} target="_blank" rel="noreferrer" className="text-blue-500 underline text-xs block mt-1">View Receipt</a>
+                      <a href={d.receipt_image} target="_blank" rel="noreferrer" className="text-blue-500 underline text-xs block mt-1">View Receipt</a>
                     )}
                   </td>
                 </tr>
