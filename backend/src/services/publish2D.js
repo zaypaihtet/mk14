@@ -25,8 +25,14 @@ const runPublish2D = async (result_number, session, result_date) => {
   const winnerInfos = [];
 
   for (const bet of bets.rows) {
-    const numbers = Array.isArray(bet.numbers) ? bet.numbers : JSON.parse(bet.numbers || "[]");
-    const won = numbers.includes(padded) || numbers.includes(result_number.toString());
+    // Support both single `number` column and JSON `numbers` array column
+    let betNumbers;
+    if (bet.numbers !== undefined) {
+      betNumbers = Array.isArray(bet.numbers) ? bet.numbers : JSON.parse(bet.numbers || "[]");
+    } else {
+      betNumbers = [bet.number];
+    }
+    const won = betNumbers.includes(padded) || betNumbers.includes(result_number.toString());
     const multiplier = bet.multiplier || 85;
 
     if (won) {
