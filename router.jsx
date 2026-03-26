@@ -28,6 +28,7 @@ import AdminDepositPage from "./src/admin/pages/AdminDepositPage";
 import AdminWithdrawPage from "./src/admin/pages/AdminWithdrawPage";
 import AdminMM2DPage from "./src/admin/pages/AdminMM2DPage";
 import AdminSettings from "./src/admin/pages/AdminSettings";
+import PrivateRoute from "./src/components/PrivateRoute";
 
 const router = createBrowserRouter([
   {
@@ -48,7 +49,14 @@ const router = createBrowserRouter([
     children: [
       { path: "/", element: <Home /> },
       { path: "/contact", element: <ContactPage /> },
-      { path: "/lottery-2d-result-detail", element: <Lottery2DResultDetail /> },
+      {
+        path: "/lottery-2d-result-detail",
+        element: (
+          <PrivateRoute>
+            <Lottery2DResultDetail />
+          </PrivateRoute>
+        ),
+      },
       { path: "/lottery-2d-history", element: <History2DPage /> },
       { path: "/lottery-3d-result-detail", element: <Lottery3DResultDetail /> },
       { path: "/lottery-three-d-betting", element: <LotteryThreeDBetting /> },

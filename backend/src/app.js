@@ -28,6 +28,19 @@ app.get("/api/health", (req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
+// Public config endpoint (no auth required)
+const pool = require("./db");
+app.get("/api/config", async (req, res) => {
+  try {
+    const result = await pool.query("SELECT key, value FROM lottery_config");
+    const config = {};
+    result.rows.forEach((r) => { config[r.key] = r.value; });
+    res.json(config);
+  } catch (err) {
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`TwoDbet Backend running on http://localhost:${PORT}`);
 });
