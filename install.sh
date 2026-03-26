@@ -1,20 +1,20 @@
 #!/usr/bin/env bash
 # ═══════════════════════════════════════════════════════════════
-#  TwoDbet VPS Installer
-#  Usage: sudo bash install.sh
+#  TwoDbet VPS Installer  —  sudo bash install.sh
+#  ပြီးသောstep တွေကို အလိုအလျောက် skip လုပ်သည်
 # ═══════════════════════════════════════════════════════════════
-set -uo pipefail
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
 BLUE='\033[0;34m'; CYAN='\033[0;36m'; BOLD='\033[1m'; NC='\033[0m'
 
 info()    { echo -e "${CYAN}[INFO]${NC}  $1"; }
 success() { echo -e "${GREEN}[OK]${NC}    $1"; }
-warn()    { echo -e "${YELLOW}[WARN]${NC}  $1"; }
-error()   { echo -e "${RED}[ERROR]${NC} $1"; exit 1; }
+warn()    { echo -e "${YELLOW}[SKIP]${NC}  $1"; }
+err()     { echo -e "${RED}[ERROR]${NC} $1"; exit 1; }
 ask()     { echo -ne "${BLUE}[INPUT]${NC} $1"; }
 
 PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)"
+ENV_FILE="$PROJECT_DIR/.env"
 
 echo ""
 echo -e "${CYAN}╔══════════════════════════════════════════════╗${NC}"
@@ -22,76 +22,86 @@ echo -e "${CYAN}║        TwoDbet VPS Auto Installer            ║${NC}"
 echo -e "${CYAN}╚══════════════════════════════════════════════╝${NC}"
 echo ""
 
-# ── 1. Check prerequisites ────────────────────────────────────
-info "Prerequisites စစ်ဆေးနေသည်..."
+# ════════════════════════════════════════════════
+# Helper: run psql with any working method
+# ════════════════════════════════════════════════
+psql_any() {
+  # $1 = database, remaining = psql args
+  local db="$1"; shift
+  local args=("$@")
+  local url
+  url=$(grep -m1 '^DATABASE_URL=' "$ENV_FILE" 2>/dev/null | cut -d= -f2- || echo "")
 
-command -v node   >/dev/null 2>&1 || error "Node.js မရှိပါ။  'apt install nodejs' ဖြင့် ထည့်ပါ"
-command -v npm    >/dev/null 2>&1 || error "npm မရှိပါ။"
-command -v psql   >/dev/null 2>&1 || error "PostgreSQL မရှိပါ။  'apt install postgresql' ဖြင့် ထည့်ပါ"
-command -v nginx  >/dev/null 2>&1 || error "Nginx မရှိပါ။  'apt install nginx' ဖြင့် ထည့်ပါ"
-command -v pm2    >/dev/null 2>&1 || { warn "pm2 မရှိ၊ install လုပ်နေသည်..."; npm install -g pm2 > /dev/null 2>&1; success "pm2 install ပြီး"; }
+  # 1) via DATABASE_URL
+  [ -n "$url" ] && psql "$url" "${args[@]}" > /dev/null 2>&1 && return 0
+  # 2) su postgres (works even when sudo not configured)
+  su -s /bin/sh postgres -c "psql -d $db $(printf '%q ' "${args[@]}")" > /dev/null 2>&1 && return 0
+  # 3) sudo -u postgres
+  sudo -u postgres psql -d "$db" "${args[@]}" > /dev/null 2>&1 && return 0
+  # 4) direct as root (if pg_hba allows)
+  psql -U postgres -d "$db" "${args[@]}" > /dev/null 2>&1 && return 0
+  return 1
+}
 
-success "Prerequisites အားလုံး ရှိနေပါသည်"
+# ════════════════════════════════════════════════
+# Helper: test DB URL connection
+# ════════════════════════════════════════════════
+test_db_url() {
+  local url="$1"
+  psql "$url" -c "SELECT 1;" > /dev/null 2>&1
+}
 
-# ── 2. Domain ချိန်ညှိ ─────────────────────────────────────────
+# ════════════════════════════════════════════════
+# 1. Prerequisites
+# ════════════════════════════════════════════════
+echo -e "${CYAN}── [1] Prerequisites ───────────────────────────${NC}"
+command -v node  >/dev/null 2>&1 || err "Node.js မရှိပါ — 'apt install nodejs'"
+command -v npm   >/dev/null 2>&1 || err "npm မရှိပါ"
+command -v psql  >/dev/null 2>&1 || err "PostgreSQL မရှိပါ — 'apt install postgresql'"
+command -v nginx >/dev/null 2>&1 || err "Nginx မရှိပါ — 'apt install nginx'"
+command -v pm2   >/dev/null 2>&1 || { info "pm2 install လုပ်နေသည်..."; npm i -g pm2 >/dev/null 2>&1; }
+success "Prerequisites OK"
+
+# ════════════════════════════════════════════════
+# 2. Domain
+# ════════════════════════════════════════════════
 echo ""
-echo -e "${CYAN}── Domain Configuration ────────────────────────${NC}"
-echo ""
+echo -e "${CYAN}── [2] Domain ──────────────────────────────────${NC}"
 
-ask "သင့် domain name ထည့်ပါ (ဥပမာ: twod.high-value.xyz): "
+ask "Domain name (ဥပမာ: twod.high-value.xyz): "
 read -r DOMAIN
-[ -z "$DOMAIN" ] && error "Domain name မထည့်ဘဲ ဆက်မသွားနိုင်ပါ"
+[ -z "$DOMAIN" ] && err "Domain name မထည့်ဘဲ ဆက်မသွားနိုင်ပါ"
 
-ask "SSL (HTTPS) certbot ဖြင့် ထည့်မလား? (Y/n): "
-read -r USE_SSL
-USE_SSL="${USE_SSL:-Y}"
+ask "SSL/HTTPS ထည့်မလား? (Y/n): "
+read -r USE_SSL; USE_SSL="${USE_SSL:-Y}"
 
-ask "SSL email (certbot အတွက်, Let's Encrypt): "
+ask "SSL email (certbot, blank ရလဲ OK): "
 read -r SSL_EMAIL
 
 success "Domain: $DOMAIN"
 
-# ── 3. .env setup ─────────────────────────────────────────────
-ENV_FILE="$PROJECT_DIR/.env"
-
+# ════════════════════════════════════════════════
+# 3. .env
+# ════════════════════════════════════════════════
 echo ""
-echo -e "${CYAN}── .env Configuration ──────────────────────────${NC}"
+echo -e "${CYAN}── [3] .env Configuration ──────────────────────${NC}"
 
 if [ -f "$ENV_FILE" ]; then
-  warn ".env ဖိုင် ရှိပြီးသားဖြစ်သည်"
-  ask "ထပ်ရေးမလား? (y/N): "
-  read -r overwrite_env
-  overwrite_env="${overwrite_env:-N}"
+  warn ".env ရှိပြီး — skip (ထပ်ရေးချင်ရင် ဖျက်ပြီး ပြန် run ပါ)"
+  # load values
+  DB_URL=$(grep -m1 '^DATABASE_URL=' "$ENV_FILE" | cut -d= -f2-)
+  BACKEND_PORT=$(grep -m1 '^BACKEND_PORT=' "$ENV_FILE" | cut -d= -f2-)
+  BACKEND_PORT="${BACKEND_PORT:-8000}"
 else
-  overwrite_env="y"
-fi
-
-if [[ "$overwrite_env" =~ ^[Yy]$ ]]; then
-  ask "PostgreSQL database name (default: twodbet): "
-  read -r DB_NAME; DB_NAME="${DB_NAME:-twodbet}"
-
-  ask "PostgreSQL username (default: postgres): "
-  read -r DB_USER; DB_USER="${DB_USER:-postgres}"
-
-  ask "PostgreSQL password (blank if none): "
-  read -rs DB_PASS; echo ""
-
-  ask "PostgreSQL host (default: localhost): "
-  read -r DB_HOST; DB_HOST="${DB_HOST:-localhost}"
-
-  ask "Backend port (default: 8000): "
-  read -r BACKEND_PORT; BACKEND_PORT="${BACKEND_PORT:-8000}"
-
-  ask "JWT Secret (Enter ရိုက်ရင် random generate လုပ်မည်): "
-  read -r JWT_SECRET
-  if [ -z "$JWT_SECRET" ]; then
-    JWT_SECRET=$(openssl rand -hex 32 2>/dev/null || cat /proc/sys/kernel/random/uuid | tr -d '-')
-    info "JWT Secret auto-generated"
-  fi
-
-  ask "App Header Secret (Enter ရိုက်ရင် default သုံးမည်): "
-  read -r APP_HEADER_SECRET
-  APP_HEADER_SECRET="${APP_HEADER_SECRET:-6230fb95f27b1b92aa6e3a670563e71f26f9c70c639e4aba8886deb279e32029}"
+  ask "PostgreSQL DB name (default: twodbet): "; read -r DB_NAME; DB_NAME="${DB_NAME:-twodbet}"
+  ask "PostgreSQL user (default: postgres): ";  read -r DB_USER; DB_USER="${DB_USER:-postgres}"
+  ask "PostgreSQL password (blank = auto-set): "; read -rs DB_PASS; echo ""
+  ask "PostgreSQL host (default: localhost): ";  read -r DB_HOST; DB_HOST="${DB_HOST:-localhost}"
+  ask "Backend port (default: 8000): ";          read -r BACKEND_PORT; BACKEND_PORT="${BACKEND_PORT:-8000}"
+  ask "JWT Secret (Enter = auto): ";             read -r JWT_SECRET
+  [ -z "$JWT_SECRET" ] && JWT_SECRET=$(openssl rand -hex 32) && info "JWT Secret auto-generated"
+  ask "App Header Secret (Enter = default): ";   read -r APP_HDR
+  APP_HDR="${APP_HDR:-6230fb95f27b1b92aa6e3a670563e71f26f9c70c639e4aba8886deb279e32029}"
 
   if [ -z "$DB_PASS" ]; then
     DB_URL="postgresql://${DB_USER}@${DB_HOST}:5432/${DB_NAME}"
@@ -100,226 +110,196 @@ if [[ "$overwrite_env" =~ ^[Yy]$ ]]; then
   fi
 
   cat > "$ENV_FILE" <<EOF
-# Database
 DATABASE_URL=${DB_URL}
-
-# Backend
 BACKEND_PORT=${BACKEND_PORT}
 JWT_SECRET=${JWT_SECRET}
-APP_HEADER_SECRET=${APP_HEADER_SECRET}
+APP_HEADER_SECRET=${APP_HDR}
 NODE_ENV=production
 EOF
-
-  success ".env ဖိုင် ဆောက်ပြီးပါပြီ → $ENV_FILE"
-else
-  info ".env ဖိုင် မပြောင်းဘဲ ဆက်သွားမည်"
-  set -o allexport; source "$ENV_FILE" 2>/dev/null; set +o allexport || true
-  DB_URL="$DATABASE_URL"
-  BACKEND_PORT="${BACKEND_PORT:-8000}"
+  success ".env ဆောက်ပြီး"
 fi
 
-# DB_NAME / DB_USER / DB_HOST fallback from URL
-if [ -z "${DB_NAME:-}" ]; then
-  DB_NAME=$(echo "$DB_URL" | grep -oP '(?<=/)[^?/]+$' 2>/dev/null || echo "twodbet")
-fi
-if [ -z "${DB_USER:-}" ]; then
-  DB_USER=$(echo "$DB_URL" | grep -oP '(?<=//)[^:@]+' 2>/dev/null || echo "postgres")
-fi
-if [ -z "${DB_PASS:-}" ]; then
-  DB_PASS=$(echo "$DB_URL" | grep -oP '(?<=:)[^@]+(?=@)' 2>/dev/null || echo "")
-fi
-DB_HOST="${DB_HOST:-localhost}"
+# Parse DB fields from URL
+DB_USER=$(echo "$DB_URL" | grep -oP '(?<=//)[^:@]+' || echo "postgres")
+DB_NAME=$(echo "$DB_URL" | grep -oP '[^/]+$'        || echo "twodbet")
+DB_HOST=$(echo "$DB_URL" | grep -oP '(?<=@)[^:/]+'  || echo "localhost")
 
-# ── Auto-fix DB connection (password auth) ────────────────────
+# ════════════════════════════════════════════════
+# 4. DB Connection — auto-fix if needed
+# ════════════════════════════════════════════════
 echo ""
-echo -e "${CYAN}── Database Connection Test ─────────────────────${NC}"
+echo -e "${CYAN}── [4] Database Connection ─────────────────────${NC}"
 
-info "Database connection စစ်ဆေးနေသည်..."
+info "Connection စစ်ဆေးနေသည်..."
 
-db_connect_ok=false
-# URL ဖြင့်သာ test — backend သုံးသောနည်းလမ်းနှင့် တူညီရမည်
-if psql "$DB_URL" -c "SELECT 1;" > /dev/null 2>&1; then
-  db_connect_ok=true
-fi
+if test_db_url "$DB_URL"; then
+  success "DB connection OK — skip"
+else
+  warn "URL ဖြင့် connect မရ — password auto-fix လုပ်နေသည်..."
+  AUTO_PASS=$(openssl rand -base64 12 | tr -dc 'a-zA-Z0-9' | head -c 14)
 
-if [ "$db_connect_ok" = false ]; then
-  warn "Database connection မရပါ — password ပြဿနာ ဖြေရှင်းနေသည်..."
+  # Set password via any available method (root can use su)
+  PW_SET=false
+  su -s /bin/sh postgres -c "psql -c \"ALTER USER ${DB_USER} WITH PASSWORD '${AUTO_PASS}';\"" > /dev/null 2>&1 && PW_SET=true
+  if [ "$PW_SET" = false ]; then
+    sudo -u postgres psql -c "ALTER USER ${DB_USER} WITH PASSWORD '${AUTO_PASS}';" > /dev/null 2>&1 && PW_SET=true
+  fi
+  if [ "$PW_SET" = false ]; then
+    psql -U postgres -c "ALTER USER ${DB_USER} WITH PASSWORD '${AUTO_PASS}';" > /dev/null 2>&1 && PW_SET=true
+  fi
 
-  # Auto-generate a secure password and set it on postgres user
-  AUTO_PG_PASS=$(openssl rand -base64 16 | tr -dc 'a-zA-Z0-9' | head -c 16)
-  info "PostgreSQL password အသစ် သတ်မှတ်နေသည်..."
+  if [ "$PW_SET" = false ]; then
+    err "PostgreSQL password မသတ်မှတ်နိုင်ပါ\nManual: sudo -u postgres psql -c \"ALTER USER postgres WITH PASSWORD 'yourpassword';\"\nပြီးရင် .env ထဲ DATABASE_URL ကို update လုပ်ပါ"
+  fi
 
-  if sudo -u postgres psql -c "ALTER USER ${DB_USER} WITH PASSWORD '${AUTO_PG_PASS}';" > /dev/null 2>&1; then
-    success "PostgreSQL password သတ်မှတ်ပြီး"
+  NEW_URL="postgresql://${DB_USER}:${AUTO_PASS}@${DB_HOST}:5432/${DB_NAME}"
+  sed -i "s|^DATABASE_URL=.*|DATABASE_URL=${NEW_URL}|" "$ENV_FILE"
+  DB_URL="$NEW_URL"
 
-    # Update DATABASE_URL in .env
-    NEW_DB_URL="postgresql://${DB_USER}:${AUTO_PG_PASS}@${DB_HOST}:5432/${DB_NAME}"
-    sed -i "s|^DATABASE_URL=.*|DATABASE_URL=${NEW_DB_URL}|" "$ENV_FILE"
-    DB_URL="$NEW_DB_URL"
-    DB_PASS="$AUTO_PG_PASS"
-
-    # Verify
-    if psql "$DB_URL" -c "SELECT 1;" > /dev/null 2>&1; then
-      success "Database connection အောင်မြင်သည် ✓"
-      db_connect_ok=true
-    else
-      error "Database connection မရသေးပါ — pg_hba.conf စစ်ဆေးပါ"
-    fi
+  if test_db_url "$DB_URL"; then
+    success "DB connection auto-fix ပြီး ✓"
   else
-    error "PostgreSQL password မသတ်မှတ်နိုင်ပါ — 'sudo -u postgres psql' အသုံးပြုနိုင်မှု စစ်ဆေးပါ"
+    err "DB connection မရပါ — pg_hba.conf စစ်ဆေးပါ (local md5 ဖြစ်ရမည်)"
   fi
-else
-  success "Database connection အောင်မြင်သည် ✓"
 fi
 
-# ── 4. PostgreSQL database ────────────────────────────────────
+# ════════════════════════════════════════════════
+# 5. Database & Schema
+# ════════════════════════════════════════════════
 echo ""
-echo -e "${CYAN}── Database Setup ───────────────────────────────${NC}"
+echo -e "${CYAN}── [5] Database & Schema ───────────────────────${NC}"
 
-# Helper: run psql command trying multiple auth methods
-psql_run() {
-  local db="$1"; shift
-  local cmd=("$@")
-  # Method 1: with password + host
-  if [ -n "$DB_PASS" ]; then
-    PGPASSWORD="$DB_PASS" psql -U "$DB_USER" -h "$DB_HOST" -d "$db" "${cmd[@]}" > /dev/null 2>&1 && return 0
-  fi
-  # Method 2: sudo -u postgres (peer auth)
-  sudo -u postgres psql -d "$db" "${cmd[@]}" > /dev/null 2>&1 && return 0
-  # Method 3: DATABASE_URL direct
-  if [ -n "$DB_URL" ]; then
-    psql "$DB_URL" "${cmd[@]}" > /dev/null 2>&1 && return 0
-  fi
-  # Method 4: no password, localhost
-  PGPASSWORD="" psql -U "$DB_USER" -h "$DB_HOST" -d "$db" "${cmd[@]}" > /dev/null 2>&1 && return 0
-  return 1
-}
+# Check if DB exists
+DB_EXISTS=$(psql "$DB_URL" -tAc "SELECT 1;" 2>/dev/null && echo "yes" || echo "no")
 
-# Helper: check db exists
-db_exists() {
-  local result
-  result=$(sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname='$DB_NAME'" 2>/dev/null) && [ "$result" = "1" ] && return 0
-  [ -n "$DB_PASS" ] && result=$(PGPASSWORD="$DB_PASS" psql -U "$DB_USER" -h "$DB_HOST" -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='$DB_NAME'" 2>/dev/null) && [ "$result" = "1" ] && return 0
-  return 1
-}
-
-info "Database '$DB_NAME' စစ်ဆေးနေသည်..."
-
-if ! db_exists; then
-  info "Database '$DB_NAME' မရှိ၊ ဆောက်နေသည်..."
-  created=false
-  sudo -u postgres createdb "$DB_NAME" 2>/dev/null && created=true
-  if [ "$created" = false ] && [ -n "$DB_PASS" ]; then
-    PGPASSWORD="$DB_PASS" psql -U "$DB_USER" -h "$DB_HOST" -d postgres -c "CREATE DATABASE $DB_NAME;" > /dev/null 2>&1 && created=true
-  fi
-  if [ "$created" = false ]; then
-    PGPASSWORD="" psql -U "$DB_USER" -h "$DB_HOST" -d postgres -c "CREATE DATABASE $DB_NAME;" > /dev/null 2>&1 && created=true
-  fi
-  [ "$created" = true ] && success "Database '$DB_NAME' ဆောက်ပြီးပါပြီ" || error "Database '$DB_NAME' ဆောက်မရပါ — PostgreSQL service running မရှိနိုင်ပါ ('systemctl start postgresql' ကြိုးစားပါ)"
-else
-  success "Database '$DB_NAME' ရှိပြီးသားဖြစ်သည်"
+if [ "$DB_EXISTS" = "no" ]; then
+  info "Database '$DB_NAME' ဆောက်နေသည်..."
+  su -s /bin/sh postgres -c "createdb $DB_NAME" > /dev/null 2>&1 || \
+  sudo -u postgres createdb "$DB_NAME" > /dev/null 2>&1 || \
+  psql "$DB_URL" -c "CREATE DATABASE $DB_NAME;" > /dev/null 2>&1 || \
+  err "Database ဆောက်မရပါ"
+  success "Database '$DB_NAME' ဆောက်ပြီး"
 fi
 
-# ── 5. Run schema.sql ─────────────────────────────────────────
+# Check if tables exist already
 SCHEMA_FILE="$PROJECT_DIR/backend/schema.sql"
+[ -f "$SCHEMA_FILE" ] || err "backend/schema.sql မတွေ့ပါ"
 
-[ -f "$SCHEMA_FILE" ] || error "backend/schema.sql မတွေ့ပါ"
+TABLE_COUNT=$(psql "$DB_URL" -tAc "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='public';" 2>/dev/null || echo "0")
+TABLE_COUNT=$(echo "$TABLE_COUNT" | tr -d '[:space:]')
 
-info "Database schema တပ်ဆင်နေသည်..."
-
-schema_ok=false
-# Try each method in turn, capture errors for last-resort display
-SCHEMA_ERR=""
-
-if [ -n "$DB_PASS" ]; then
-  SCHEMA_ERR=$(PGPASSWORD="$DB_PASS" psql -U "$DB_USER" -h "$DB_HOST" -d "$DB_NAME" -f "$SCHEMA_FILE" 2>&1) && schema_ok=true
-fi
-if [ "$schema_ok" = false ]; then
-  SCHEMA_ERR=$(sudo -u postgres psql -d "$DB_NAME" -f "$SCHEMA_FILE" 2>&1) && schema_ok=true
-fi
-if [ "$schema_ok" = false ] && [ -n "$DB_URL" ]; then
-  SCHEMA_ERR=$(psql "$DB_URL" -f "$SCHEMA_FILE" 2>&1) && schema_ok=true
-fi
-if [ "$schema_ok" = false ]; then
-  SCHEMA_ERR=$(PGPASSWORD="" psql -U "$DB_USER" -h "$DB_HOST" -d "$DB_NAME" -f "$SCHEMA_FILE" 2>&1) && schema_ok=true
-fi
-
-if [ "$schema_ok" = true ]; then
-  success "Schema တပ်ဆင်ပြီးပါပြီ"
+if [ "${TABLE_COUNT:-0}" -ge 8 ] 2>/dev/null; then
+  warn "Tables ($TABLE_COUNT) ရှိပြီး — schema skip"
 else
-  error "Schema တပ်ဆင်မရပါ။\n  Error: $SCHEMA_ERR"
+  info "Schema တပ်ဆင်နေသည်..."
+  if psql "$DB_URL" -f "$SCHEMA_FILE" > /dev/null 2>&1; then
+    success "Schema တပ်ဆင်ပြီး"
+  else
+    err "Schema တပ်ဆင်မရပါ — 'psql \$DATABASE_URL -f backend/schema.sql' ကြည့်ပါ"
+  fi
 fi
 
-# ── 6. Install dependencies ───────────────────────────────────
+# ════════════════════════════════════════════════
+# 6. Dependencies & Build
+# ════════════════════════════════════════════════
 echo ""
-echo -e "${CYAN}── Dependencies တပ်ဆင်နေသည် ─────────────────────${NC}"
+echo -e "${CYAN}── [6] Dependencies & Build ────────────────────${NC}"
 
-info "Backend npm install..."
-if OUT=$(cd "$PROJECT_DIR/backend" && npm install --production 2>&1); then
-  success "Backend dependencies တပ်ဆင်ပြီး"
+# Backend
+if [ -d "$PROJECT_DIR/backend/node_modules" ]; then
+  warn "Backend node_modules ရှိပြီး — skip"
 else
-  error "Backend npm install မရပါ:\n$OUT"
+  info "Backend npm install..."
+  if OUT=$(cd "$PROJECT_DIR/backend" && npm install --production 2>&1); then
+    success "Backend dependencies တပ်ဆင်ပြီး"
+  else
+    err "Backend npm install မရပါ:\n$OUT"
+  fi
 fi
 
-info "Frontend npm install..."
-if OUT=$(cd "$PROJECT_DIR" && npm install 2>&1); then
-  success "Frontend dependencies တပ်ဆင်ပြီး"
+# Frontend
+if [ -d "$PROJECT_DIR/node_modules" ]; then
+  warn "Frontend node_modules ရှိပြီး — skip"
 else
-  error "Frontend npm install မရပါ:\n$OUT"
+  info "Frontend npm install..."
+  if OUT=$(cd "$PROJECT_DIR" && npm install 2>&1); then
+    success "Frontend dependencies တပ်ဆင်ပြီး"
+  else
+    err "Frontend npm install မရပါ:\n$OUT"
+  fi
 fi
 
-info "Frontend build လုပ်နေသည် (ခဏစောင့်ပါ)..."
-if OUT=$(cd "$PROJECT_DIR" && npm run build 2>&1); then
-  success "Frontend build ပြီးပါပြီ → $PROJECT_DIR/dist/"
-else
-  error "Frontend build မရပါ:\n$OUT"
+# Build — skip if dist/ exists and no src changes
+NEED_BUILD=true
+if [ -d "$PROJECT_DIR/dist" ]; then
+  DIST_TIME=$(stat -c %Y "$PROJECT_DIR/dist" 2>/dev/null || echo 0)
+  SRC_TIME=$(find "$PROJECT_DIR/src" -newer "$PROJECT_DIR/dist" -name "*.jsx" -o -name "*.tsx" -o -name "*.js" -o -name "*.ts" 2>/dev/null | wc -l)
+  SRC_TIME=$(echo "$SRC_TIME" | tr -d '[:space:]')
+  if [ "${SRC_TIME:-0}" -eq 0 ]; then
+    warn "dist/ ရှိပြီး၊ src မပြောင်း — build skip"
+    NEED_BUILD=false
+  fi
 fi
 
-# ── 7. PM2 setup ──────────────────────────────────────────────
+if [ "$NEED_BUILD" = true ]; then
+  info "Frontend build လုပ်နေသည် (ခဏစောင့်ပါ)..."
+  if OUT=$(cd "$PROJECT_DIR" && npm run build 2>&1); then
+    success "Frontend build ပြီး → dist/"
+  else
+    err "Frontend build မရပါ:\n$OUT"
+  fi
+fi
+
+# ════════════════════════════════════════════════
+# 7. PM2
+# ════════════════════════════════════════════════
 echo ""
-echo -e "${CYAN}── PM2 Setup ────────────────────────────────────${NC}"
+echo -e "${CYAN}── [7] PM2 Backend Process ─────────────────────${NC}"
 
-cd "$PROJECT_DIR"
-
-# Kill anything already on backend port
-info "Port ${BACKEND_PORT} စစ်ဆေးနေသည်..."
+# Free the port first
 fuser -k "${BACKEND_PORT}/tcp" > /dev/null 2>&1 || true
 sleep 1
-success "Port ${BACKEND_PORT} အဆင်သင့်ဖြစ်သည်"
 
-# Remove ALL pm2 processes (delete = env fully reset on next start)
-info "PM2 process အဟောင်းများ ရှင်းနေသည်..."
-pm2 delete all > /dev/null 2>&1 || true
+# Always delete existing twodbet process and start fresh so .env is reloaded
+pm2 delete twodbet > /dev/null 2>&1 || true
 sleep 1
 
-# Start fresh — explicitly load .env so pm2 always picks up correct vars
-info "PM2 process အသစ် ဆောက်နေသည် (.env vars load လုပ်ပြီး)..."
-ENV_VARS=$(grep -v '^#' "$ENV_FILE" | grep -v '^\s*$' | xargs)
+info "PM2 start (.env vars load လုပ်ပြီး)..."
+ENV_VARS=$(grep -v '^\s*#' "$ENV_FILE" | grep -v '^\s*$' | xargs)
 if OUT=$(env $ENV_VARS pm2 start "$PROJECT_DIR/backend/src/app.js" \
     --name twodbet \
     --log ~/.pm2/logs/twodbet-out.log \
     --error ~/.pm2/logs/twodbet-error.log 2>&1); then
   success "PM2 start ပြီး"
 else
-  error "PM2 start မရပါ:\n$OUT"
+  err "PM2 start မရပါ:\n$OUT"
 fi
 
 pm2 save > /dev/null 2>&1
-STARTUP_CMD=$(pm2 startup 2>/dev/null | grep -E "^sudo" || true)
+STARTUP_CMD=$(pm2 startup 2>/dev/null | grep -E "^sudo|^env" || true)
 [ -n "$STARTUP_CMD" ] && eval "$STARTUP_CMD" > /dev/null 2>&1 || true
-success "PM2 setup ပြီးပါပြီ (server reboot လုပ်ရင်လည်း အလိုအလျောက် start မည်)"
+success "PM2 reboot-safe setup ပြီး"
 
-# ── 8. Nginx config ───────────────────────────────────────────
+# ════════════════════════════════════════════════
+# 8. Nginx
+# ════════════════════════════════════════════════
 echo ""
-echo -e "${CYAN}── Nginx Domain Setup ($DOMAIN) ─────────────────${NC}"
+echo -e "${CYAN}── [8] Nginx ($DOMAIN) ─────────────────────────${NC}"
 
 NGINX_CONF="/etc/nginx/sites-available/twodbet"
 NGINX_ENABLED="/etc/nginx/sites-enabled/twodbet"
 DIST_PATH="$PROJECT_DIR/dist"
 
-info "Nginx config ရေးနေသည်..."
+mkdir -p /etc/nginx/sites-available /etc/nginx/sites-enabled
 
-cat > "$NGINX_CONF" <<NGINX_EOF
+# Only rewrite if domain changed or file missing
+CURRENT_DOMAIN=$(grep -m1 'server_name' "$NGINX_CONF" 2>/dev/null | awk '{print $2}' | tr -d ';' || echo "")
+
+if [ "$CURRENT_DOMAIN" = "$DOMAIN" ] && [ -f "$NGINX_CONF" ]; then
+  warn "Nginx config '$DOMAIN' ရှိပြီး — skip"
+else
+  info "Nginx config ရေးနေသည်..."
+  cat > "$NGINX_CONF" <<NGINX_EOF
 server {
     listen 80;
     server_name ${DOMAIN};
@@ -327,7 +307,6 @@ server {
     root ${DIST_PATH};
     index index.html;
 
-    # Backend API proxy
     location /api/ {
         proxy_pass http://localhost:${BACKEND_PORT};
         proxy_http_version 1.1;
@@ -337,106 +316,82 @@ server {
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto \$scheme;
-        proxy_cache_bypass \$http_upgrade;
         proxy_read_timeout 60s;
     }
 
-    # Uploaded files proxy
     location /uploads/ {
         proxy_pass http://localhost:${BACKEND_PORT};
         proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
     }
 
-    # React SPA - catch all routes
     location / {
         try_files \$uri \$uri/ /index.html;
     }
 
-    # Static assets caching
     location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
         expires 30d;
         add_header Cache-Control "public, no-transform";
     }
 }
 NGINX_EOF
+  success "Nginx config ရေးပြီး"
+fi
 
-success "Nginx config ရေးပြီး → $NGINX_CONF"
+# Ensure include exists in nginx.conf
+grep -q "sites-enabled" /etc/nginx/nginx.conf 2>/dev/null || \
+  sed -i '/http {/a\\tinclude /etc/nginx/sites-enabled/*;' /etc/nginx/nginx.conf
 
 # Enable site
-if [ ! -L "$NGINX_ENABLED" ]; then
-  ln -s "$NGINX_CONF" "$NGINX_ENABLED"
-  success "Site enabled"
-fi
+[ -L "$NGINX_ENABLED" ] || ln -s "$NGINX_CONF" "$NGINX_ENABLED"
+[ -L "/etc/nginx/sites-enabled/default" ] && rm -f /etc/nginx/sites-enabled/default || true
 
-# Remove default site if exists
-[ -L "/etc/nginx/sites-enabled/default" ] && rm /etc/nginx/sites-enabled/default && info "Default site ဖျက်လိုက်သည်"
+nginx -t > /dev/null 2>&1 && success "Nginx config valid" || err "Nginx config error — 'nginx -t' စစ်ပါ"
+systemctl reload nginx > /dev/null 2>&1 && success "Nginx reload ပြီး"
 
-# Test nginx config
-nginx -t 2>/dev/null && success "Nginx config စစ်ဆေးချက် ကောင်းသည်" || error "Nginx config error ရှိသည် — 'nginx -t' ဖြင့် စစ်ပါ"
-
-systemctl reload nginx 2>/dev/null && success "Nginx reload ပြီး"
-
-# ── 9. SSL / HTTPS ────────────────────────────────────────────
+# ════════════════════════════════════════════════
+# 9. SSL
+# ════════════════════════════════════════════════
 if [[ "$USE_SSL" =~ ^[Yy]$ ]]; then
   echo ""
-  echo -e "${CYAN}── SSL (HTTPS) Setup ────────────────────────────${NC}"
+  echo -e "${CYAN}── [9] SSL / HTTPS ──────────────────────────────${NC}"
 
-  if ! command -v certbot >/dev/null 2>&1; then
-    info "Certbot install လုပ်နေသည်..."
-    apt-get install -y certbot python3-certbot-nginx > /dev/null 2>&1
-    success "Certbot install ပြီး"
-  fi
-
-  info "SSL certificate ရယူနေသည် ($DOMAIN)..."
-  if [ -n "$SSL_EMAIL" ]; then
-    certbot --nginx \
-      -d "$DOMAIN" \
-      --non-interactive \
-      --agree-tos \
-      --email "$SSL_EMAIL" \
-      --redirect 2>/dev/null \
-      && success "SSL certificate ရပြီး! HTTPS အသုံးပြုနိုင်ပြီ" \
-      || warn "SSL certificate ရယူမရပါ — domain DNS ချိန်ညှိမှု ကောင်းရဲ့လားစစ်ပါ"
+  CERT_PATH="/etc/letsencrypt/live/${DOMAIN}/fullchain.pem"
+  if [ -f "$CERT_PATH" ]; then
+    warn "SSL cert '$DOMAIN' ရှိပြီး — skip (renew: certbot renew)"
   else
-    certbot --nginx \
-      -d "$DOMAIN" \
-      --non-interactive \
-      --agree-tos \
-      --register-unsafely-without-email \
-      --redirect 2>/dev/null \
-      && success "SSL certificate ရပြီး! HTTPS အသုံးပြုနိုင်ပြီ" \
-      || warn "SSL certificate ရယူမရပါ — domain DNS ချိန်ညှိမှု ကောင်းရဲ့လားစစ်ပါ"
-  fi
+    command -v certbot >/dev/null 2>&1 || { info "certbot install..."; apt-get install -y certbot python3-certbot-nginx > /dev/null 2>&1; }
 
-  # Auto-renew cron
-  (crontab -l 2>/dev/null; echo "0 3 * * * certbot renew --quiet && systemctl reload nginx") | sort -u | crontab -
-  success "SSL auto-renew cron ထည့်ပြီး (နေ့တိုင်း နံနက် ၃ နာရီ စစ်ဆေးမည်)"
+    info "SSL certificate ရယူနေသည်..."
+    CB_FLAGS="--nginx -d $DOMAIN --non-interactive --agree-tos --redirect"
+    [ -n "$SSL_EMAIL" ] && CB_FLAGS="$CB_FLAGS --email $SSL_EMAIL" || CB_FLAGS="$CB_FLAGS --register-unsafely-without-email"
+
+    if eval certbot $CB_FLAGS > /dev/null 2>&1; then
+      success "SSL certificate ရပြီး — HTTPS အသုံးပြုနိုင်ပြီ"
+    else
+      warn "SSL မရပါ — domain DNS ချိန်ညှိမှု ကောင်းရဲ့လားစစ်ပါ (HTTP ဖြင့် ဆက်သုံးနိုင်သည်)"
+    fi
+
+    (crontab -l 2>/dev/null; echo "0 3 * * * certbot renew --quiet && systemctl reload nginx") | sort -u | crontab -
+    success "SSL auto-renew cron ထည့်ပြီး"
+  fi
 else
-  info "SSL setup ကျော်သွားမည်"
+  info "SSL skip"
 fi
 
-# ── Done ──────────────────────────────────────────────────────
+# ════════════════════════════════════════════════
+# Done
+# ════════════════════════════════════════════════
 echo ""
 echo -e "${GREEN}╔══════════════════════════════════════════════╗${NC}"
 echo -e "${GREEN}║         Setup ပြီးစီးပါပြီ!  ✓               ║${NC}"
 echo -e "${GREEN}╚══════════════════════════════════════════════╝${NC}"
 echo ""
-
-if [[ "$USE_SSL" =~ ^[Yy]$ ]]; then
-  echo -e "  Website  : ${CYAN}https://${DOMAIN}${NC}"
-else
-  echo -e "  Website  : ${CYAN}http://${DOMAIN}${NC}"
-fi
-echo ""
-echo -e "  Admin Login:"
-echo -e "  Phone    : ${CYAN}09000000000${NC}"
-echo -e "  Password : ${CYAN}admin123${NC}"
+[[ "$USE_SSL" =~ ^[Yy]$ ]] && PROTO="https" || PROTO="http"
+echo -e "  Website  : ${CYAN}${PROTO}://${DOMAIN}${NC}"
+echo -e "  Admin    : ${CYAN}09000000000${NC}  /  ${CYAN}admin123${NC}"
 echo -e "  ${YELLOW}(Login ဝင်ပြီးချက်ချင်း password ပြောင်းပါ!)${NC}"
 echo ""
-echo -e "  ${BOLD}အသုံးဝင်သော commands:${NC}"
-echo -e "  pm2 log twodbet          ${CYAN}# backend logs ကြည့်ရန်${NC}"
-echo -e "  pm2 restart twodbet      ${CYAN}# backend restart${NC}"
-echo -e "  pm2 status               ${CYAN}# process status ကြည့်ရန်${NC}"
-echo -e "  certbot renew --dry-run  ${CYAN}# SSL renew test${NC}"
+echo -e "  pm2 log twodbet       ${CYAN}# logs ကြည့်ရန်${NC}"
+echo -e "  pm2 restart twodbet   ${CYAN}# restart${NC}"
+echo -e "  bash install.sh       ${CYAN}# ပြန် run ရင် ပြီးသောstep skip မည်${NC}"
 echo ""
