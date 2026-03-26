@@ -78,18 +78,44 @@ const MM2DCard = ({ data }) => {
         </div>
 
         {/* Evening 4:30 */}
-        <div className="bg-white/60 rounded-xl p-3 text-center">
-          <p className="text-[11px] font-semibold text-gray-600 mb-1">ညနေ ၄:၃၀</p>
-          <div className={`text-3xl font-black tracking-widest ${r430 === "--" ? "text-gray-400" : "text-blue-900"}`}>
-            {r430}
-          </div>
-          {s430 && v430 && r430 !== "--" && (
-            <div className="mt-1 text-[10px] text-gray-600 space-y-0.5">
-              <div>Set: <b>{s430}</b></div>
-              <div>Val: <b>{v430}</b></div>
+        {(() => {
+          const liveNum = data?.live ? fmt(data.live) : "--";
+          // Only show live on 4:30 card after 12:00 result is finalised
+          const isLive  = r430 === "--" && liveNum !== "--" && r1200 !== "--";
+          const display = r430 !== "--" ? r430 : liveNum;
+          return (
+            <div className={`rounded-xl p-3 text-center ${r430 !== "--" ? "bg-white/60" : isLive ? "bg-orange-100" : "bg-white/60"}`}>
+              <div className="flex items-center justify-center gap-1 mb-1">
+                {isLive && (
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75" />
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-orange-500" />
+                  </span>
+                )}
+                <p className={`text-[11px] font-semibold ${isLive ? "text-orange-600" : "text-gray-600"}`}>
+                  {isLive ? "LIVE · ၄:၃၀" : "ညနေ ၄:၃၀"}
+                </p>
+              </div>
+              <div className={`text-3xl font-black tracking-widest ${
+                r430 !== "--" ? "text-blue-900" : isLive ? "text-orange-500" : "text-gray-400"
+              } ${isLive ? "animate-pulse" : ""}`}>
+                {display}
+              </div>
+              {r430 !== "--" && s430 && (
+                <div className="mt-1 text-[10px] text-gray-600 space-y-0.5">
+                  <div>Set: <b>{s430}</b></div>
+                  <div>Val: <b>{v430}</b></div>
+                </div>
+              )}
+              {isLive && data?.live_set && (
+                <div className="mt-1 text-[10px] text-orange-500 space-y-0.5">
+                  <div>Set: <b>{data.live_set}</b></div>
+                  <div>Val: <b>{data.live_val}</b></div>
+                </div>
+              )}
             </div>
-          )}
-        </div>
+          );
+        })()}
       </div>
 
       <div className="flex gap-2">
