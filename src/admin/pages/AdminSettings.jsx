@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Save, Clock, Calendar, Eye, Zap, Phone, Image, AlignLeft } from "lucide-react";
+import { Save, Clock, Calendar, Eye, Zap, Phone, Image, AlignLeft, Trash2, Plus, MessageSquare } from "lucide-react";
 import { api } from "../../utils/api";
 
 const DAYS = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
@@ -36,24 +36,29 @@ const AdminSettings = () => {
     "contact_phone": "",
     "site_name": "KM Fourteen",
     "marquee_text": "",
+    "popup_title": "အထူးကမ်းလှမ်းချက်!",
+    "popup_text": "ယနေ့ပဲ စတင်ကစားပါ!",
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState("");
 
-  // Banner / Logo upload state
-  const [bannerPreview, setBannerPreview] = useState("");
+  // Multi-banner + logo state
+  const [banners, setBanners]         = useState([]); // array of URLs
   const [logoPreview, setLogoPreview] = useState("");
   const [uploadingBanner, setUploadingBanner] = useState(false);
-  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [uploadingLogo, setUploadingLogo]     = useState(false);
   const bannerRef = useRef();
-  const logoRef = useRef();
+  const logoRef   = useRef();
 
   useEffect(() => {
     api.admin.getConfig()
       .then((data) => {
         setConfig((prev) => ({ ...prev, ...data }));
-        if (data.banner_url) setBannerPreview(data.banner_url);
+        try {
+          const urls = JSON.parse(data.banner_urls || "[]");
+          if (Array.isArray(urls)) setBanners(urls);
+        } catch {}
         if (data.logo_url) setLogoPreview(data.logo_url);
       })
       .catch(() => {})
@@ -67,8 +72,8 @@ const AdminSettings = () => {
   const handleSave = async () => {
     setSaving(true);
     try {
-      // Exclude banner_url and logo_url from config save (managed by upload endpoints)
-      const { banner_url, logo_url, ...saveData } = config;
+      // Exclude banner_url, banner_urls, logo_url (managed by upload endpoints)
+      const { banner_url, banner_urls, logo_url, ...saveData } = config;
       await api.admin.updateConfig(saveData);
       showMsg("✓ သိမ်းဆည်းပြီးပါပြီ");
     } catch (err) {
@@ -85,27 +90,39 @@ const AdminSettings = () => {
   };
   const openDays = config["3d_open_days"]?.split(",").filter(Boolean) || [];
 
-  const handleUpload = async (type, file) => {
+  const handleAddBanner = async (file) => {
     if (!file) return;
     const fd = new FormData();
     fd.append("file", file);
-    if (type === "banner") {
-      setUploadingBanner(true);
-      try {
-        const res = await api.admin.uploadBanner(fd);
-        setBannerPreview(res.url);
-        showMsg("✓ Banner တင်ပြီးပါပြီ");
-      } catch (err) { showMsg("Error: " + err.message); }
-      finally { setUploadingBanner(false); }
-    } else {
-      setUploadingLogo(true);
-      try {
-        const res = await api.admin.uploadLogo(fd);
-        setLogoPreview(res.url);
-        showMsg("✓ Logo တင်ပြီးပါပြီ");
-      } catch (err) { showMsg("Error: " + err.message); }
-      finally { setUploadingLogo(false); }
-    }
+    setUploadingBanner(true);
+    try {
+      const res = await api.admin.addBanner(fd);
+      setBanners(res.banners || []);
+      showMsg("✓ Banner ပုံ ထည့်ပြီးပါပြီ");
+    } catch (err) { showMsg("Error: " + err.message); }
+    finally { setUploadingBanner(false); bannerRef.current.value = ""; }
+  };
+
+  const handleDeleteBanner = async (index) => {
+    if (!confirm("ဤ Banner ပုံကို ဖျက်မည်လား?")) return;
+    try {
+      const res = await api.admin.deleteBanner(index);
+      setBanners(res.banners || []);
+      showMsg("✓ Banner ဖျက်ပြီးပါပြီ");
+    } catch (err) { showMsg("Error: " + err.message); }
+  };
+
+  const handleUploadLogo = async (file) => {
+    if (!file) return;
+    const fd = new FormData();
+    fd.append("file", file);
+    setUploadingLogo(true);
+    try {
+      const res = await api.admin.uploadLogo(fd);
+      setLogoPreview(res.url);
+      showMsg("✓ Logo တင်ပြီးပါပြီ");
+    } catch (err) { showMsg("Error: " + err.message); }
+    finally { setUploadingLogo(false); }
   };
 
   if (loading) return <div className="text-gray-500 p-6">Loading...</div>;
@@ -250,22 +267,77 @@ const AdminSettings = () => {
           <h2 className="text-lg font-semibold">Banner / Logo ပြင်ဆင်ရန်</h2>
         </div>
 
-        {/* Banner */}
+        {/* Multi-banner grid */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Banner ပုံ</label>
-          <p className="text-xs text-gray-400 mb-2">Home page slider (ပထမဆုံးကတ်) + Popup modal နှစ်ခုလုံးမှာ ပြသည်</p>
-          {bannerPreview && (
-            <img src={bannerPreview} alt="Banner" className="w-full max-h-40 object-cover rounded-xl mb-2 border" />
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Banner ပုံများ <span className="text-gray-400 font-normal">({banners.length} ပုံ)</span>
+          </label>
+          <p className="text-xs text-gray-400 mb-3">Home page slider + Popup modal နှစ်ခုလုံးမှာ ပြသည်။ ပုံများ ဖျက်မည်ဆိုရင် ❌ နှိပ်ပါ။</p>
+
+          {/* Image grid */}
+          {banners.length > 0 && (
+            <div className="grid grid-cols-2 gap-2 mb-3">
+              {banners.map((url, i) => (
+                <div key={i} className="relative group rounded-xl overflow-hidden border">
+                  <img src={url} alt={`Banner ${i + 1}`} className="w-full h-28 object-cover" />
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
+                    <button
+                      onClick={() => handleDeleteBanner(i)}
+                      className="opacity-0 group-hover:opacity-100 bg-red-500 text-white rounded-full p-1.5 shadow transition-opacity"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                  <span className="absolute top-1 left-1 bg-black/50 text-white text-[10px] rounded px-1">{i + 1}</span>
+                </div>
+              ))}
+            </div>
           )}
-          <input type="file" accept="image/*" ref={bannerRef} className="hidden" onChange={(e) => handleUpload("banner", e.target.files[0])} />
-          <button onClick={() => bannerRef.current.click()} disabled={uploadingBanner}
-            className="w-full border-2 border-dashed border-pink-300 rounded-xl py-3 text-sm text-pink-600 hover:bg-pink-50 transition-colors disabled:opacity-50">
-            {uploadingBanner ? "တင်နေသည်..." : "📷 Banner ပုံ ရွေးမည်"}
+
+          <input
+            type="file" accept="image/*" ref={bannerRef} className="hidden"
+            onChange={(e) => handleAddBanner(e.target.files[0])}
+          />
+          <button
+            onClick={() => bannerRef.current.click()}
+            disabled={uploadingBanner}
+            className="w-full border-2 border-dashed border-pink-300 rounded-xl py-3 text-sm text-pink-600 hover:bg-pink-50 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+          >
+            <Plus className="h-4 w-4" />
+            {uploadingBanner ? "တင်နေသည်..." : "Banner ပုံ ထည့်မည်"}
           </button>
         </div>
 
+        {/* Popup title + text */}
+        <div className="border-t pt-4 space-y-3">
+          <div className="flex items-center gap-2 mb-1">
+            <MessageSquare className="h-4 w-4 text-indigo-500" />
+            <p className="text-sm font-semibold text-gray-700">Popup Modal စာသား</p>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">ခေါင်းစဉ်</label>
+            <input
+              type="text"
+              value={config["popup_title"] || ""}
+              onChange={(e) => set("popup_title", e.target.value)}
+              placeholder="အထူးကမ်းလှမ်းချက်!"
+              className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">အကြောင်းအရာ</label>
+            <input
+              type="text"
+              value={config["popup_text"] || ""}
+              onChange={(e) => set("popup_text", e.target.value)}
+              placeholder="ယနေ့ပဲ စတင်ကစားပါ!"
+              className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+            />
+          </div>
+        </div>
+
         {/* Logo */}
-        <div>
+        <div className="border-t pt-4">
           <label className="block text-sm font-medium text-gray-700 mb-2">Site Logo ပုံ</label>
           {logoPreview && (
             <div className="flex items-center gap-3 mb-2">
@@ -273,7 +345,7 @@ const AdminSettings = () => {
               <span className="text-sm text-gray-500">ယခု Logo</span>
             </div>
           )}
-          <input type="file" accept="image/*" ref={logoRef} className="hidden" onChange={(e) => handleUpload("logo", e.target.files[0])} />
+          <input type="file" accept="image/*" ref={logoRef} className="hidden" onChange={(e) => handleUploadLogo(e.target.files[0])} />
           <button onClick={() => logoRef.current.click()} disabled={uploadingLogo}
             className="w-full border-2 border-dashed border-blue-300 rounded-xl py-3 text-sm text-blue-600 hover:bg-blue-50 transition-colors disabled:opacity-50">
             {uploadingLogo ? "တင်နေသည်..." : "🖼️ Logo ပုံ ရွေးမည်"}

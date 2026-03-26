@@ -73,6 +73,8 @@ export const api = {
     deleteNotification: (id) => request("DELETE", `/admin/notifications/${id}`),
     uploadBanner: (formData) => request("POST", "/admin/upload/banner", formData, true),
     uploadLogo: (formData) => request("POST", "/admin/upload/logo", formData, true),
+    addBanner: (formData) => request("POST", "/admin/upload/banners", formData, true),
+    deleteBanner: (index) => request("DELETE", `/admin/banners/${index}`),
   },
 };
 
