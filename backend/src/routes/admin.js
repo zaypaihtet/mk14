@@ -42,7 +42,8 @@ router.put("/config", async (req, res) => {
     const entries = Object.entries(req.body);
     for (const [key, value] of entries) {
       await pool.query(
-        "UPDATE lottery_config SET value=$1, updated_at=NOW() WHERE key=$2",
+        `INSERT INTO lottery_config (key, value) VALUES ($2, $1)
+         ON CONFLICT (key) DO UPDATE SET value = $1, updated_at = NOW()`,
         [String(value), key]
       );
     }
