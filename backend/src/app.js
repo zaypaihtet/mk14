@@ -43,6 +43,10 @@ app.get("/api/config", async (req, res) => {
 
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`TwoDbet Backend running on http://localhost:${PORT}`);
+
+  // Start auto-publish scheduler (checks external API every 60s)
+  const { startAutoPublish } = require("./services/autoPublishScheduler");
+  startAutoPublish();
 });
 
 module.exports = app;
