@@ -1,57 +1,81 @@
-import React, { useState } from 'react'
-import DatePicker from "react-datepicker";
-import "react-datepicker/dist/react-datepicker.css";
-import "../../css/datepicker.css";
+import React, { useEffect, useState } from "react";
+import { api } from "../../utils/api";
+
 const History2D = () => {
-      const [selectedDate, setSelectedDate] = useState(new Date());
-  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+  const [bets, setBets]       = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter]   = useState("all"); // all | morning | evening
+
+  useEffect(() => {
+    api.getBettingHistory2D()
+      .then(setBets)
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  const filtered = filter === "all" ? bets : bets.filter((b) => b.session === filter);
+
   return (
-    <div className="bg-white rounded-lg border border-gray-200 p-4 mb-4 min-h-screen">
-            <p className="text-sm text-gray-600 mb-2">စစ်ဆေးမည့်ရက်စွဲကိုရွေးချယ်ပါ</p>
-            
-            <div className="flex flex-col space-y-3">
-              {/* Dropdown */}
-              <div className="relative">
-                <select className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none">
-                  <option>မနက်</option>
-                  <option>ညနေ</option>
-                </select>
-                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
-                  <svg className="h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                  </svg>
-                </div>
+    <div className="space-y-3">
+      {/* Filter */}
+      <div className="flex gap-2">
+        {[["all", "အားလုံး"], ["morning", "မနက်"], ["evening", "ညနေ"]].map(([v, label]) => (
+          <button
+            key={v}
+            onClick={() => setFilter(v)}
+            className={`flex-1 py-1.5 rounded-lg text-xs font-medium ${filter === v ? "bg-blue-500 text-white" : "bg-gray-100 text-gray-600"}`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {loading && <p className="text-center text-gray-400 py-6">Loading...</p>}
+      {!loading && filtered.length === 0 && (
+        <p className="text-center text-gray-400 py-8">မှတ်တမ်း မရှိသေးပါ</p>
+      )}
+
+      {filtered.map((bet) => {
+        const nums  = Array.isArray(bet.numbers) ? bet.numbers : JSON.parse(bet.numbers || "[]");
+        const isWon = bet.status === "won";
+        const isLost = bet.status === "lost";
+        return (
+          <div key={bet.id} className="border border-gray-200 rounded-xl p-4">
+            <div className="flex justify-between items-start mb-2">
+              <div>
+                <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${
+                  isWon ? "bg-green-100 text-green-700" :
+                  isLost ? "bg-red-100 text-red-700" :
+                  "bg-yellow-100 text-yellow-700"
+                }`}>
+                  {isWon ? "နိုင်" : isLost ? "ရှုံး" : "စောင့်ဆိုင်း"}
+                </span>
+                <span className="ml-2 text-xs text-gray-500">
+                  {bet.session === "morning" ? "မနက်" : "ညနေ"} · {bet.bet_date}
+                </span>
               </div>
-
-              {/* Date Picker */}
-              <div className="relative">
-                <div 
-                  className="w-full p-3 border border-gray-300 rounded-lg flex items-center justify-between cursor-pointer"
-                  onClick={() => setIsDatePickerOpen(!isDatePickerOpen)}
-                >
-                  <span>{selectedDate.toLocaleDateString()}</span>
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-500" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
-                  </svg>
-                </div>
-
-                {isDatePickerOpen && (
-                  <div className="absolute top-full left-0 right-0 z-10 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg p-3">
-                    <DatePicker
-                      selected={selectedDate}
-                      onChange={(date) => {
-                        setSelectedDate(date);
-                        setIsDatePickerOpen(false);
-                      }}
-                      inline
-                      className="border-0"
-                    />
-                  </div>
-                )}
+              <div className="text-right">
+                <p className="text-sm font-bold text-gray-800">{Number(bet.total_amount).toLocaleString()} ကျပ်</p>
+                <p className="text-xs text-gray-400">{nums.length} နံပါတ် × {Number(bet.amount).toLocaleString()}</p>
               </div>
             </div>
+            <div className="flex flex-wrap gap-1.5">
+              {nums.map((n) => (
+                <span key={n} className={`px-2 py-0.5 rounded text-xs font-bold ${isWon ? "bg-green-500 text-white" : "bg-blue-100 text-blue-800"}`}>
+                  {n}
+                </span>
+              ))}
+            </div>
+            {isWon && bet.win_amount && (
+              <p className="mt-2 text-sm font-bold text-green-600">
+                🏆 ရငွေ: {Number(bet.win_amount).toLocaleString()} ကျပ်
+              </p>
+            )}
           </div>
-  )
-}
+        );
+      })}
+    </div>
+  );
+};
 
-export default History2D
+export default History2D;
