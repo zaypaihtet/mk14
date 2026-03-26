@@ -20,12 +20,14 @@ import History2DPage from "./src/pages/History2DPage";
 import LoginPage from "./src/pages/auth/LoginPage";
 import RegisterPage from "./src/pages/auth/RegisterPage";
 import AdminLayout from "./src/admin/AdminLayout";
+import AdminLogin from "./src/admin/pages/AdminLogin";
 import Dashboard from "./src/admin/pages/Dashboard";
 import UsersList from "./src/admin/pages/UsersList";
 import AgentsList from "./src/admin/pages/AgentsList";
 import AdminDepositPage from "./src/admin/pages/AdminDepositPage";
 import AdminWithdrawPage from "./src/admin/pages/AdminWithdrawPage";
 import AdminMM2DPage from "./src/admin/pages/AdminMM2DPage";
+import AdminSettings from "./src/admin/pages/AdminSettings";
 
 const router = createBrowserRouter([
   {
@@ -44,71 +46,27 @@ const router = createBrowserRouter([
     path: "/",
     element: <Layout />,
     children: [
-      {
-        path: "/",
-        element: <Home />,
-      },
-      {
-        path: "/contact",
-        element: <ContactPage />,
-      },
-      {
-        path: "/lottery-2d-result-detail",
-        element: <Lottery2DResultDetail />,
-      },
-      {
-        path: "/lottery-2d-history",
-        element: <History2DPage />,
-      },
-      {
-        path: "/lottery-3d-result-detail",
-        element: <Lottery3DResultDetail />,
-      },
-      {
-        path: "/lottery-three-d-betting",
-        element: <LotteryThreeDBetting />,
-      },
-      {
-        path: "/lottery-two-d-betting",
-        element: <LotteryTwoDBetting />,
-      },
-      {
-        path: "/lottery-two-d-confirmation",
-        element: <LotteryTwoDConfirmation />,
-      },
-      {
-        path: "/dubai-2d-result",
-        element: <Dubai2DResultPage />,
-      },
-      {
-        path: "/dubai-3d-result",
-        element: <Dubai3DResultPage />,
-      },
-      {
-        path: "/wallet",
-        element: <WalletPage />,
-      },
-      {
-        path: "/wallet-deposit",
-        element: <DepositPage />,
-      },
-      {
-        path: "/wallet-deposit-form",
-        element: <DepositForm />,
-      },
-      {
-        path: "/wallet-withdraw-form",
-        element: <WithdrawForm />,
-      },
-      {
-        path: "/notifications",
-        element: <NotificationsPage />,
-      },
-      {
-        path: "/profile",
-        element: <ProfilePage />,
-      },
+      { path: "/", element: <Home /> },
+      { path: "/contact", element: <ContactPage /> },
+      { path: "/lottery-2d-result-detail", element: <Lottery2DResultDetail /> },
+      { path: "/lottery-2d-history", element: <History2DPage /> },
+      { path: "/lottery-3d-result-detail", element: <Lottery3DResultDetail /> },
+      { path: "/lottery-three-d-betting", element: <LotteryThreeDBetting /> },
+      { path: "/lottery-two-d-betting", element: <LotteryTwoDBetting /> },
+      { path: "/lottery-two-d-confirmation", element: <LotteryTwoDConfirmation /> },
+      { path: "/dubai-2d-result", element: <Dubai2DResultPage /> },
+      { path: "/dubai-3d-result", element: <Dubai3DResultPage /> },
+      { path: "/wallet", element: <WalletPage /> },
+      { path: "/wallet-deposit", element: <DepositPage /> },
+      { path: "/wallet-deposit-form", element: <DepositForm /> },
+      { path: "/wallet-withdraw-form", element: <WithdrawForm /> },
+      { path: "/notifications", element: <NotificationsPage /> },
+      { path: "/profile", element: <ProfilePage /> },
     ],
+  },
+  {
+    path: "/admin/login",
+    element: <AdminLogin />,
   },
   {
     path: "/admin",
@@ -123,9 +81,11 @@ const router = createBrowserRouter([
           { path: "deposit", element: <AdminDepositPage /> },
           { path: "withdraw", element: <AdminWithdrawPage /> },
           { path: "mm2d", element: <AdminMM2DPage /> },
+          { path: "settings", element: <AdminSettings /> },
         ],
       },
     ],
   },
 ]);
+
 export default router;

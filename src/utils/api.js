@@ -44,9 +44,14 @@ export const api = {
   getNotifications: () => request("GET", "/notifications"),
   markNotificationRead: (id) => request("PUT", `/notifications/${id}/read`),
 
+  // Config (public)
+  getConfig: () => request("GET", "/admin/config"),
+
   // Admin
   admin: {
     getDashboard: () => request("GET", "/admin/dashboard"),
+    getConfig: () => request("GET", "/admin/config"),
+    updateConfig: (data) => request("PUT", "/admin/config", data),
     getUsers: () => request("GET", "/admin/users"),
     getAgents: () => request("GET", "/admin/agents"),
     createAgent: (data) => request("POST", "/admin/agents", data),
