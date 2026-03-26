@@ -1,0 +1,44 @@
+root@outline-500-gb:/var/www/html/twodbet# nano /etc/nginx/sites-available/twodbet
+root@outline-500-gb:/var/www/html/twodbet# rm -rf /etc/nginx/sites-available/twodbet
+root@outline-500-gb:/var/www/html/twodbet# nano /etc/nginx/sites-available/twodbet
+root@outline-500-gb:/var/www/html/twodbet# nginx -t && systemctl reload nginx
+2026/03/26 18:02:10 [warn] 3650240#3650240: conflicting server name "vpn1.lotayawingoprime.site" on 0.0.0.0:443, ignored
+nginx: the configuration file /etc/nginx/nginx.conf syntax is ok
+nginx: configuration file /etc/nginx/nginx.conf test is successful
+root@outline-500-gb:/var/www/html/twodbet# rm -rf /etc/nginx/sites-available/twodbet
+root@outline-500-gb:/var/www/html/twodbet# nano /etc/nginx/sites-available/twodbet
+root@outline-500-gb:/var/www/html/twodbet# sudo nginx -t
+2026/03/26 18:03:10 [warn] 3650456#3650456: conflicting server name "vpn1.lotayawingoprime.site" on 0.0.0.0:443, ignored
+nginx: the configuration file /etc/nginx/nginx.conf syntax is ok
+nginx: configuration file /etc/nginx/nginx.conf test is successful
+root@outline-500-gb:/var/www/html/twodbet# sudo certbot --nginx -d twod.high-value.xyz
+Saving debug log to /var/log/letsencrypt/letsencrypt.log
+Certificate not yet due for renewal
+
+You have an existing certificate that has exactly the same domains or certificate name you requested and isn't close to expiry.
+(ref: /etc/letsencrypt/renewal/twod.high-value.xyz.conf)
+
+What would you like to do?
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+1: Attempt to reinstall this existing certificate
+2: Renew & replace the certificate (may be subject to CA rate limits)
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Select the appropriate number [1-2] then [enter] (press 'c' to cancel): 1
+Deploying certificate
+Successfully deployed certificate for twod.high-value.xyz to /etc/nginx/sites-enabled/twodbet
+Congratulations! You have successfully enabled HTTPS on https://twod.high-value.xyz
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+If you like Certbot, please consider supporting our work by:
+* Donating to ISRG / Let's Encrypt:   https://letsencrypt.org/donate
+* Donating to EFF:                    https://eff.org/donate-le
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+root@outline-500-gb:/var/www/html/twodbet# sudo systemctl restart nginx
+root@outline-500-gb:/var/www/html/twodbet# curl https://twod.high-value.xyz/
+curl: (60) SSL: no alternative certificate subject name matches target host name 'twod.high-value.xyz'
+More details here: https://curl.se/docs/sslcerts.html
+
+curl failed to verify the legitimacy of the server and therefore could not
+establish a secure connection to it. To learn more about this situation and
+how to fix it, please visit the web page mentioned above.
+root@outline-500-gb:/var/www/html/twodbet#
