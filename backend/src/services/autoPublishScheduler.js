@@ -48,8 +48,14 @@ const runPublish3D = async (result_number, result_date) => {
 
   let winnersCount = 0;
   for (const bet of bets.rows) {
-    const numbers = Array.isArray(bet.numbers) ? bet.numbers : JSON.parse(bet.numbers || "[]");
-    const won = numbers.includes(result_number);
+    // Support both single `number` column and JSON `numbers` array column
+    let betNumbers;
+    if (bet.numbers !== undefined) {
+      betNumbers = Array.isArray(bet.numbers) ? bet.numbers : JSON.parse(bet.numbers || "[]");
+    } else {
+      betNumbers = [bet.number];
+    }
+    const won = betNumbers.includes(result_number);
     const multiplier = bet.multiplier || 600;
     if (won) {
       const winAmount = bet.amount * multiplier;
