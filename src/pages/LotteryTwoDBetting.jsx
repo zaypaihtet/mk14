@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { ArrowLeft, Wallet, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import TwoDQuickPickModal from "../components/lottery2d-betting/TwoDQuickPickModal";
+import { api, isLoggedIn } from "../utils/api";
 
 const LotteryTwoDBetting = () => {
   const [selectedNumbers, setSelectedNumbers] = useState([]);
@@ -84,7 +85,9 @@ const LotteryTwoDBetting = () => {
     alert("ရွေးချယ်ထားသောနံပါတ်များ ရှင်းလင်းပြီးပါပြီ");
   };
 
-  const handleBottomBet = () => {
+  const [session, setSession] = useState('morning');
+
+  const handleBottomBet = async () => {
     if (selectedNumbers.length === 0) {
       alert("နံပါတ်များ ရွေးချယ်ပါ");
       return;
