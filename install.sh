@@ -218,10 +218,20 @@ DIST_PATH="$PROJECT_DIR/dist"
 
 info "Nginx config ရေးနေသည်..."
 
+# Create directories if they don't exist
+mkdir -p /etc/nginx/sites-available
+mkdir -p /etc/nginx/sites-enabled
+
+# Ensure nginx includes sites-enabled (add if missing)
+if ! grep -q "sites-enabled" /etc/nginx/nginx.conf 2>/dev/null; then
+  info "Nginx main config ထဲ sites-enabled include ထည့်နေသည်..."
+  sed -i '/http {/a\\tinclude /etc/nginx/sites-enabled/*;' /etc/nginx/nginx.conf 2>/dev/null || true
+fi
+
 cat > "$NGINX_CONF" <<NGINX_EOF
 server {
     listen 80;
-    server_name ${DOMAIN} www.${DOMAIN};
+    server_name ${DOMAIN};
 
     root ${DIST_PATH};
     index index.html;
@@ -301,7 +311,6 @@ if [[ "$USE_SSL" =~ ^[Yy]$ ]]; then
   else
     certbot --nginx \
       -d "$DOMAIN" \
-      -d "www.$DOMAIN" \
       --non-interactive \
       --agree-tos \
       --register-unsafely-without-email \
