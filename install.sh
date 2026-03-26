@@ -1,42 +1,61 @@
 #!/usr/bin/env bash
 # ═══════════════════════════════════════════════════════════════
 #  TwoDbet VPS Installer
-#  Usage: bash install.sh
+#  Usage: sudo bash install.sh
 # ═══════════════════════════════════════════════════════════════
 set -e
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
-BLUE='\033[0;34m'; CYAN='\033[0;36m'; NC='\033[0m'
+BLUE='\033[0;34m'; CYAN='\033[0;36m'; BOLD='\033[1m'; NC='\033[0m'
 
 info()    { echo -e "${CYAN}[INFO]${NC}  $1"; }
 success() { echo -e "${GREEN}[OK]${NC}    $1"; }
 warn()    { echo -e "${YELLOW}[WARN]${NC}  $1"; }
 error()   { echo -e "${RED}[ERROR]${NC} $1"; exit 1; }
-ask()     { echo -e "${BLUE}[INPUT]${NC} $1"; }
+ask()     { echo -ne "${BLUE}[INPUT]${NC} $1"; }
 
 PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 echo ""
-echo -e "${CYAN}╔══════════════════════════════════════════╗${NC}"
-echo -e "${CYAN}║        TwoDbet VPS Auto Installer        ║${NC}"
-echo -e "${CYAN}╚══════════════════════════════════════════╝${NC}"
+echo -e "${CYAN}╔══════════════════════════════════════════════╗${NC}"
+echo -e "${CYAN}║        TwoDbet VPS Auto Installer            ║${NC}"
+echo -e "${CYAN}╚══════════════════════════════════════════════╝${NC}"
 echo ""
 
-# ── 1. Check prerequisites ───────────────────────────────────
+# ── 1. Check prerequisites ────────────────────────────────────
 info "Prerequisites စစ်ဆေးနေသည်..."
 
-command -v node  >/dev/null 2>&1 || error "Node.js မရှိပါ။  'apt install nodejs' ဖြင့် ထည့်ပါ"
-command -v npm   >/dev/null 2>&1 || error "npm မရှိပါ။"
-command -v psql  >/dev/null 2>&1 || error "PostgreSQL မရှိပါ။  'apt install postgresql' ဖြင့် ထည့်ပါ"
-command -v pm2   >/dev/null 2>&1 || { warn "pm2 မရှိ၊ install လုပ်နေသည်..."; npm install -g pm2; }
+command -v node   >/dev/null 2>&1 || error "Node.js မရှိပါ။  'apt install nodejs' ဖြင့် ထည့်ပါ"
+command -v npm    >/dev/null 2>&1 || error "npm မရှိပါ။"
+command -v psql   >/dev/null 2>&1 || error "PostgreSQL မရှိပါ။  'apt install postgresql' ဖြင့် ထည့်ပါ"
+command -v nginx  >/dev/null 2>&1 || error "Nginx မရှိပါ။  'apt install nginx' ဖြင့် ထည့်ပါ"
+command -v pm2    >/dev/null 2>&1 || { warn "pm2 မရှိ၊ install လုပ်နေသည်..."; npm install -g pm2 > /dev/null 2>&1; success "pm2 install ပြီး"; }
 
 success "Prerequisites အားလုံး ရှိနေပါသည်"
 
-# ── 2. .env setup ────────────────────────────────────────────
+# ── 2. Domain ချိန်ညှိ ─────────────────────────────────────────
+echo ""
+echo -e "${CYAN}── Domain Configuration ────────────────────────${NC}"
+echo ""
+
+ask "သင့် domain name ထည့်ပါ (ဥပမာ: twod.high-value.xyz): "
+read -r DOMAIN
+[ -z "$DOMAIN" ] && error "Domain name မထည့်ဘဲ ဆက်မသွားနိုင်ပါ"
+
+ask "SSL (HTTPS) certbot ဖြင့် ထည့်မလား? (Y/n): "
+read -r USE_SSL
+USE_SSL="${USE_SSL:-Y}"
+
+ask "SSL email (certbot အတွက်, Let's Encrypt): "
+read -r SSL_EMAIL
+
+success "Domain: $DOMAIN"
+
+# ── 3. .env setup ─────────────────────────────────────────────
 ENV_FILE="$PROJECT_DIR/.env"
 
 echo ""
-echo -e "${CYAN}── .env Configuration ─────────────────────${NC}"
+echo -e "${CYAN}── .env Configuration ──────────────────────────${NC}"
 
 if [ -f "$ENV_FILE" ]; then
   warn ".env ဖိုင် ရှိပြီးသားဖြစ်သည်"
@@ -63,13 +82,14 @@ if [[ "$overwrite_env" =~ ^[Yy]$ ]]; then
   ask "Backend port (default: 8000): "
   read -r BACKEND_PORT; BACKEND_PORT="${BACKEND_PORT:-8000}"
 
-  ask "JWT Secret (Enter ကို ရိုက်ရင် random generate လုပ်မည်): "
+  ask "JWT Secret (Enter ရိုက်ရင် random generate လုပ်မည်): "
   read -r JWT_SECRET
   if [ -z "$JWT_SECRET" ]; then
     JWT_SECRET=$(openssl rand -hex 32 2>/dev/null || cat /proc/sys/kernel/random/uuid | tr -d '-')
+    info "JWT Secret auto-generated"
   fi
 
-  ask "App Header Secret (Enter ကို ရိုက်ရင် default ကို သုံးမည်): "
+  ask "App Header Secret (Enter ရိုက်ရင် default သုံးမည်): "
   read -r APP_HEADER_SECRET
   APP_HEADER_SECRET="${APP_HEADER_SECRET:-6230fb95f27b1b92aa6e3a670563e71f26f9c70c639e4aba8886deb279e32029}"
 
@@ -93,131 +113,231 @@ EOF
   success ".env ဖိုင် ဆောက်ပြီးပါပြီ → $ENV_FILE"
 else
   info ".env ဖိုင် မပြောင်းဘဲ ဆက်သွားမည်"
-  source "$ENV_FILE" 2>/dev/null || true
+  set -o allexport; source "$ENV_FILE" 2>/dev/null; set +o allexport || true
   DB_URL="$DATABASE_URL"
+  BACKEND_PORT="${BACKEND_PORT:-8000}"
 fi
 
-# ── 3. PostgreSQL database ───────────────────────────────────
-echo ""
-echo -e "${CYAN}── Database Setup ──────────────────────────${NC}"
-
+# DB_NAME / DB_USER / DB_HOST fallback from URL
 if [ -z "$DB_NAME" ]; then
-  DB_NAME=$(echo "$DB_URL" | grep -oP '(?<=/)[^?]+$' || echo "twodbet")
+  DB_NAME=$(echo "$DB_URL" | grep -oP '(?<=/)[^?/]+$' || echo "twodbet")
 fi
 if [ -z "$DB_USER" ]; then
   DB_USER=$(echo "$DB_URL" | grep -oP '(?<=//)[^:@]+' || echo "postgres")
 fi
+DB_HOST="${DB_HOST:-localhost}"
+
+# ── 4. PostgreSQL database ────────────────────────────────────
+echo ""
+echo -e "${CYAN}── Database Setup ───────────────────────────────${NC}"
 
 info "Database '$DB_NAME' စစ်ဆေးနေသည်..."
 
 DB_EXISTS=$(sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname='$DB_NAME'" 2>/dev/null || echo "")
 if [ "$DB_EXISTS" != "1" ]; then
   info "Database '$DB_NAME' မရှိ၊ ဆောက်နေသည်..."
-  sudo -u postgres createdb "$DB_NAME" 2>/dev/null && success "Database '$DB_NAME' ဆောက်ပြီးပါပြီ" || warn "Database ဆောက်မရပါ — ကိုယ်တိုင် ဆောက်ပါ"
+  sudo -u postgres createdb "$DB_NAME" 2>/dev/null \
+    && success "Database '$DB_NAME' ဆောက်ပြီးပါပြီ" \
+    || warn "Database ဆောက်မရပါ — ကိုယ်တိုင် ဆောက်ပါ"
 else
   success "Database '$DB_NAME' ရှိပြီးသားဖြစ်သည်"
 fi
 
-# ── 4. Run schema.sql ────────────────────────────────────────
+# ── 5. Run schema.sql ─────────────────────────────────────────
 SCHEMA_FILE="$PROJECT_DIR/backend/schema.sql"
 
 if [ -f "$SCHEMA_FILE" ]; then
   info "Database schema တပ်ဆင်နေသည်..."
   if [ -n "$DB_PASS" ]; then
-    PGPASSWORD="$DB_PASS" psql -U "$DB_USER" -h "${DB_HOST:-localhost}" -d "$DB_NAME" -f "$SCHEMA_FILE" > /dev/null 2>&1 \
+    PGPASSWORD="$DB_PASS" psql -U "$DB_USER" -h "$DB_HOST" -d "$DB_NAME" -f "$SCHEMA_FILE" > /dev/null 2>&1 \
       && success "Schema တပ်ဆင်ပြီးပါပြီ" \
-      || warn "Schema တပ်ဆင်ရာ error ဖြစ်ခဲ့သည် — psql ဖြင့် ကိုယ်တိုင် run နိုင်သည်"
+      || warn "Schema error — psql ဖြင့် ကိုယ်တိုင် run နိုင်သည်"
   else
     sudo -u postgres psql -d "$DB_NAME" -f "$SCHEMA_FILE" > /dev/null 2>&1 \
       && success "Schema တပ်ဆင်ပြီးပါပြီ" \
-      || warn "Schema တပ်ဆင်ရာ error ဖြစ်ခဲ့သည် — psql ဖြင့် ကိုယ်တိုင် run နိုင်သည်"
+      || warn "Schema error — psql ဖြင့် ကိုယ်တိုင် run နိုင်သည်"
   fi
 else
   error "backend/schema.sql မတွေ့ပါ"
 fi
 
-# ── 5. Install backend dependencies ─────────────────────────
+# ── 6. Install dependencies ───────────────────────────────────
 echo ""
-echo -e "${CYAN}── Dependencies တပ်ဆင်နေသည် ───────────────${NC}"
+echo -e "${CYAN}── Dependencies တပ်ဆင်နေသည် ─────────────────────${NC}"
 
 info "Backend npm install..."
 cd "$PROJECT_DIR/backend" && npm install --production > /dev/null 2>&1
 success "Backend dependencies တပ်ဆင်ပြီး"
 
-# ── 6. Build frontend ────────────────────────────────────────
-info "Frontend dependencies တပ်ဆင်နေသည်..."
+info "Frontend npm install..."
 cd "$PROJECT_DIR" && npm install > /dev/null 2>&1
 success "Frontend dependencies တပ်ဆင်ပြီး"
 
 info "Frontend build လုပ်နေသည် (ခဏစောင့်ပါ)..."
 cd "$PROJECT_DIR" && npm run build > /dev/null 2>&1
-success "Frontend build ပြီးပါပြီ → dist/"
+success "Frontend build ပြီးပါပြီ → $PROJECT_DIR/dist/"
 
-# ── 7. PM2 setup ─────────────────────────────────────────────
+# ── 7. PM2 setup ──────────────────────────────────────────────
 echo ""
-echo -e "${CYAN}── PM2 Setup ───────────────────────────────${NC}"
+echo -e "${CYAN}── PM2 Setup ────────────────────────────────────${NC}"
 
 cd "$PROJECT_DIR"
 
-PM2_EXISTS=$(pm2 list | grep -c "twodbet" || true)
+# Load .env into pm2 environment
+ENV_ARGS=""
+if [ -f "$ENV_FILE" ]; then
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    [[ "$line" =~ ^#.*$ || -z "$line" ]] && continue
+    ENV_ARGS="$ENV_ARGS --env-var $line"
+  done < "$ENV_FILE"
+fi
+
+PM2_EXISTS=$(pm2 list 2>/dev/null | grep -c "twodbet" || echo "0")
 if [ "$PM2_EXISTS" -gt "0" ]; then
   info "PM2 process ရှိပြီးသား — restart လုပ်နေသည်..."
-  pm2 restart twodbet --update-env
+  pm2 restart twodbet --update-env 2>/dev/null
 else
   info "PM2 process အသစ် ဆောက်နေသည်..."
-  pm2 start backend/src/app.js \
+  env $(cat "$ENV_FILE" | grep -v '^#' | xargs) pm2 start backend/src/app.js \
     --name twodbet \
-    --env production \
     --log ~/.pm2/logs/twodbet-out.log \
     --error ~/.pm2/logs/twodbet-error.log
 fi
 
 pm2 save > /dev/null 2>&1
-success "PM2 setup ပြီးပါပြီ"
+pm2 startup 2>/dev/null | grep -E "^sudo" | bash 2>/dev/null || true
+success "PM2 setup ပြီးပါပြီ (server reboot လုပ်ရင်လည်း အလိုအလျောက် start မည်)"
 
-# ── 8. Nginx config hint ─────────────────────────────────────
+# ── 8. Nginx config ───────────────────────────────────────────
 echo ""
-echo -e "${CYAN}── Nginx Configuration ─────────────────────${NC}"
+echo -e "${CYAN}── Nginx Domain Setup ($DOMAIN) ─────────────────${NC}"
+
+NGINX_CONF="/etc/nginx/sites-available/twodbet"
+NGINX_ENABLED="/etc/nginx/sites-enabled/twodbet"
+DIST_PATH="$PROJECT_DIR/dist"
+
+info "Nginx config ရေးနေသည်..."
+
+cat > "$NGINX_CONF" <<NGINX_EOF
+server {
+    listen 80;
+    server_name ${DOMAIN} www.${DOMAIN};
+
+    root ${DIST_PATH};
+    index index.html;
+
+    # Backend API proxy
+    location /api/ {
+        proxy_pass http://localhost:${BACKEND_PORT};
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_cache_bypass \$http_upgrade;
+        proxy_read_timeout 60s;
+    }
+
+    # Uploaded files proxy
+    location /uploads/ {
+        proxy_pass http://localhost:${BACKEND_PORT};
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+    }
+
+    # React SPA - catch all routes
+    location / {
+        try_files \$uri \$uri/ /index.html;
+    }
+
+    # Static assets caching
+    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
+        expires 30d;
+        add_header Cache-Control "public, no-transform";
+    }
+}
+NGINX_EOF
+
+success "Nginx config ရေးပြီး → $NGINX_CONF"
+
+# Enable site
+if [ ! -L "$NGINX_ENABLED" ]; then
+  ln -s "$NGINX_CONF" "$NGINX_ENABLED"
+  success "Site enabled"
+fi
+
+# Remove default site if exists
+[ -L "/etc/nginx/sites-enabled/default" ] && rm /etc/nginx/sites-enabled/default && info "Default site ဖျက်လိုက်သည်"
+
+# Test nginx config
+nginx -t 2>/dev/null && success "Nginx config စစ်ဆေးချက် ကောင်းသည်" || error "Nginx config error ရှိသည် — 'nginx -t' ဖြင့် စစ်ပါ"
+
+systemctl reload nginx 2>/dev/null && success "Nginx reload ပြီး"
+
+# ── 9. SSL / HTTPS ────────────────────────────────────────────
+if [[ "$USE_SSL" =~ ^[Yy]$ ]]; then
+  echo ""
+  echo -e "${CYAN}── SSL (HTTPS) Setup ────────────────────────────${NC}"
+
+  if ! command -v certbot >/dev/null 2>&1; then
+    info "Certbot install လုပ်နေသည်..."
+    apt-get install -y certbot python3-certbot-nginx > /dev/null 2>&1
+    success "Certbot install ပြီး"
+  fi
+
+  info "SSL certificate ရယူနေသည် ($DOMAIN)..."
+  if [ -n "$SSL_EMAIL" ]; then
+    certbot --nginx \
+      -d "$DOMAIN" \
+      -d "www.$DOMAIN" \
+      --non-interactive \
+      --agree-tos \
+      --email "$SSL_EMAIL" \
+      --redirect 2>/dev/null \
+      && success "SSL certificate ရပြီး! HTTPS အသုံးပြုနိုင်ပြီ" \
+      || warn "SSL certificate ရယူမရပါ — domain DNS ချိန်ညှိမှု ကောင်းရဲ့လားစစ်ပါ"
+  else
+    certbot --nginx \
+      -d "$DOMAIN" \
+      -d "www.$DOMAIN" \
+      --non-interactive \
+      --agree-tos \
+      --register-unsafely-without-email \
+      --redirect 2>/dev/null \
+      && success "SSL certificate ရပြီး! HTTPS အသုံးပြုနိုင်ပြီ" \
+      || warn "SSL certificate ရယူမရပါ — domain DNS ချိန်ညှိမှု ကောင်းရဲ့လားစစ်ပါ"
+  fi
+
+  # Auto-renew cron
+  (crontab -l 2>/dev/null; echo "0 3 * * * certbot renew --quiet && systemctl reload nginx") | sort -u | crontab -
+  success "SSL auto-renew cron ထည့်ပြီး (နေ့တိုင်း နံနက် ၃ နာရီ စစ်ဆေးမည်)"
+else
+  info "SSL setup ကျော်သွားမည်"
+fi
+
+# ── Done ──────────────────────────────────────────────────────
 echo ""
-warn "Nginx config ကို ဒီပုံစံဖြင့် ပြင်ပါ —"
+echo -e "${GREEN}╔══════════════════════════════════════════════╗${NC}"
+echo -e "${GREEN}║         Setup ပြီးစီးပါပြီ!  ✓               ║${NC}"
+echo -e "${GREEN}╚══════════════════════════════════════════════╝${NC}"
 echo ""
-cat <<'NGINX'
-  server {
-      listen 80;
-      server_name your-domain.com;
 
-      root /var/www/html/twodbet/dist;
-      index index.html;
-
-      location /api/ {
-          proxy_pass http://localhost:8000;
-          proxy_http_version 1.1;
-          proxy_set_header Host $host;
-          proxy_set_header X-Real-IP $remote_addr;
-      }
-
-      location /uploads/ {
-          proxy_pass http://localhost:8000;
-      }
-
-      location / {
-          try_files $uri $uri/ /index.html;
-      }
-  }
-NGINX
-echo ""
-warn "ပြင်ပြီးနောက် — sudo nginx -t && sudo systemctl reload nginx"
-
-# ── Done ─────────────────────────────────────────────────────
-echo ""
-echo -e "${GREEN}╔══════════════════════════════════════════╗${NC}"
-echo -e "${GREEN}║          Setup ပြီးစီးပါပြီ! ✓            ║${NC}"
-echo -e "${GREEN}╚══════════════════════════════════════════╝${NC}"
+if [[ "$USE_SSL" =~ ^[Yy]$ ]]; then
+  echo -e "  Website  : ${CYAN}https://${DOMAIN}${NC}"
+else
+  echo -e "  Website  : ${CYAN}http://${DOMAIN}${NC}"
+fi
 echo ""
 echo -e "  Admin Login:"
 echo -e "  Phone    : ${CYAN}09000000000${NC}"
 echo -e "  Password : ${CYAN}admin123${NC}"
-echo -e "  (Login ဝင်ပြီးချက်ချင်း password ပြောင်းပါ)"
+echo -e "  ${YELLOW}(Login ဝင်ပြီးချက်ချင်း password ပြောင်းပါ!)${NC}"
 echo ""
-echo -e "  PM2 logs : ${CYAN}pm2 log twodbet${NC}"
+echo -e "  ${BOLD}အသုံးဝင်သော commands:${NC}"
+echo -e "  pm2 log twodbet          ${CYAN}# backend logs ကြည့်ရန်${NC}"
+echo -e "  pm2 restart twodbet      ${CYAN}# backend restart${NC}"
+echo -e "  pm2 status               ${CYAN}# process status ကြည့်ရန်${NC}"
+echo -e "  certbot renew --dry-run  ${CYAN}# SSL renew test${NC}"
 echo ""
