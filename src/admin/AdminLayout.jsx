@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Outlet, Link, useLocation, useNavigate } from "react-router";
 import {
   Home, FileText, Users, LogOut, Menu, X,
-  BanknoteArrowUp, BanknoteArrowDown, RadioTower, Settings, UserCog,
+  BanknoteArrowUp, BanknoteArrowDown, RadioTower, Settings, UserCog, Bell,
 } from "lucide-react";
 import { removeToken } from "../utils/api";
 
@@ -34,6 +34,7 @@ const AdminLayout = () => {
     { path: "/admin/users", icon: Users, label: "Users" },
     { path: "/admin/deposit", icon: BanknoteArrowUp, label: "Deposit" },
     { path: "/admin/withdraw", icon: BanknoteArrowDown, label: "Withdraw" },
+    { path: "/admin/notifications", icon: Bell, label: "Notifications" },
     { path: "/admin/settings", icon: Settings, label: "Settings" },
   ];
 

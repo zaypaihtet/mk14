@@ -64,6 +64,9 @@ export const api = {
     getBets2D: () => request("GET", "/admin/bets/2d"),
     publishResult2D: (data) => request("POST", "/admin/results/2d", data),
     publishResult3D: (data) => request("POST", "/admin/results/3d", data),
+    getNotifications: () => request("GET", "/admin/notifications"),
+    sendNotification: (data) => request("POST", "/notifications", data),
+    deleteNotification: (id) => request("DELETE", `/admin/notifications/${id}`),
   },
 };
 

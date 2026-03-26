@@ -51,4 +51,25 @@ router.put("/config", async (req, res) => {
   }
 });
 
+// Admin notification management
+router.get("/notifications", async (req, res) => {
+  try {
+    const result = await pool.query(
+      "SELECT * FROM notifications ORDER BY created_at DESC LIMIT 100"
+    );
+    res.json(result.rows);
+  } catch {
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+router.delete("/notifications/:id", async (req, res) => {
+  try {
+    await pool.query("DELETE FROM notifications WHERE id = $1", [req.params.id]);
+    res.json({ message: "ဖျက်ပြီးပါပြီ" });
+  } catch {
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
 module.exports = router;

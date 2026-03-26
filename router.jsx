@@ -28,6 +28,7 @@ import AdminDepositPage from "./src/admin/pages/AdminDepositPage";
 import AdminWithdrawPage from "./src/admin/pages/AdminWithdrawPage";
 import AdminMM2DPage from "./src/admin/pages/AdminMM2DPage";
 import AdminSettings from "./src/admin/pages/AdminSettings";
+import AdminNotificationsPage from "./src/admin/pages/AdminNotificationsPage";
 import PrivateRoute from "./src/components/PrivateRoute";
 
 const router = createBrowserRouter([
@@ -89,6 +90,7 @@ const router = createBrowserRouter([
           { path: "deposit", element: <AdminDepositPage /> },
           { path: "withdraw", element: <AdminWithdrawPage /> },
           { path: "mm2d", element: <AdminMM2DPage /> },
+          { path: "notifications", element: <AdminNotificationsPage /> },
           { path: "settings", element: <AdminSettings /> },
         ],
       },

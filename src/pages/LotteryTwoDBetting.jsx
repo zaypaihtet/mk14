@@ -143,7 +143,7 @@ const LotteryTwoDBetting = () => {
               onClick={() => setSession("morning")}
               className={`flex-1 py-2 text-sm font-medium transition-colors ${session === "morning" ? "bg-white text-blue-700" : "bg-white/20 text-white"}`}
             >
-              မနက် (11:00 AM)
+              မနက် (12:00 PM)
             </button>
             <button
               onClick={() => setSession("evening")}
