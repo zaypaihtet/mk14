@@ -1,9 +1,10 @@
 const BASE_URL = import.meta.env.VITE_API_URL || "/api";
+const APP_KEY = import.meta.env.VITE_APP_HEADER_SECRET || "6230fb95f27b1b92aa6e3a670563e71f26f9c70c639e4aba8886deb279e32029";
 
 const getToken = () => localStorage.getItem("token");
 
 const headers = (isFormData = false) => {
-  const h = {};
+  const h = { "x-app-key": APP_KEY };
   if (!isFormData) h["Content-Type"] = "application/json";
   const token = getToken();
   if (token) h["Authorization"] = `Bearer ${token}`;
@@ -84,6 +85,12 @@ export const api = {
     addHoliday: (data) => request("POST", "/admin/holidays", data),
     deleteHoliday: (id) => request("DELETE", `/admin/holidays/${id}`),
   },
+};
+
+// Drop-in fetch replacement that adds the security header automatically
+export const apiFetch = (url, options = {}) => {
+  const mergedHeaders = { "x-app-key": APP_KEY, ...(options.headers || {}) };
+  return fetch(url, { ...options, headers: mergedHeaders });
 };
 
 export const setToken = (token) => localStorage.setItem("token", token);

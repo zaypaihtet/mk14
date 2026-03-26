@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { X } from "lucide-react";
+import { apiFetch } from "../utils/api";
 
 const TODAY_KEY = "ads_shown_date";
 
@@ -10,7 +11,7 @@ const AdsModal = () => {
   const [text, setText]           = useState("ယနေ့ပဲ စတင်ကစားပါ!");
 
   useEffect(() => {
-    fetch("/api/config")
+    apiFetch("/api/config")
       .then((r) => r.json())
       .then((data) => {
         // Pick first banner from banner_urls array, fallback to banner_url

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import { Link } from "react-router-dom";
+import { apiFetch } from "../utils/api";
 
 // Pad number to 2 digits or return "--"
 const fmt = (val) => {
@@ -24,7 +25,7 @@ const Lottery2DResultDetail = () => {
   const [error, setError]     = useState(null);
 
   useEffect(() => {
-    fetch("/api/lottery/history/2d-external")
+    apiFetch("/api/lottery/history/2d-external")
       .then((r) => r.json())
       .then((data) => {
         if (data?.data && Array.isArray(data.data)) {

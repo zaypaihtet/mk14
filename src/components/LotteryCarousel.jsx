@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
+import { apiFetch } from "../utils/api";
 
 const LotteryCarousel = () => {
   const [slides, setSlides] = useState([]);
   const [current, setCurrent] = useState(0);
 
   useEffect(() => {
-    fetch("/api/config")
+    apiFetch("/api/config")
       .then((r) => r.json())
       .then((data) => {
         try {

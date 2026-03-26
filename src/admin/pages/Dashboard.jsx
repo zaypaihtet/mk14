@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
 import { Receipt, TicketCheck, UserCheck, Users, RadioTower, BanknoteArrowDown, BanknoteArrowUp } from "lucide-react";
-import { api } from "../../utils/api";
+import { api, apiFetch } from "../../utils/api";
 
 const Dashboard = () => {
   const [stats, setStats] = useState(null);
@@ -16,7 +16,7 @@ const Dashboard = () => {
 
     const fetchLive = async () => {
       try {
-        const res = await fetch("/api/lottery/live/2d");
+        const res = await apiFetch("/api/lottery/live/2d");
         if (res.ok) setLiveData(await res.json());
       } catch {}
     };

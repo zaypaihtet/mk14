@@ -1,12 +1,13 @@
 import { Link } from "react-router-dom";
 import { useState, useEffect } from "react";
+import { apiFetch } from "../utils/api";
 
 const useLive2D = () => {
   const [liveData, setLiveData] = useState(null);
   useEffect(() => {
     const fetchLive = async () => {
       try {
-        const res = await fetch("/api/lottery/live/2d");
+        const res = await apiFetch("/api/lottery/live/2d");
         if (res.ok) setLiveData(await res.json());
       } catch {}
     };
@@ -20,7 +21,7 @@ const useLive2D = () => {
 const useAppConfig = () => {
   const [config, setConfig] = useState({});
   useEffect(() => {
-    fetch("/api/config")
+    apiFetch("/api/config")
       .then((r) => r.json())
       .then(setConfig)
       .catch(() => {});

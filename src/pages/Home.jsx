@@ -8,7 +8,7 @@ import NotificationModal from "../components/NotificationModal";
 import { Link } from "react-router";
 import ContactComponent from "../components/ContactComponent";
 import Winners2DSection from "../components/Winners2DSection";
-import { isLoggedIn } from "../utils/api";
+import { isLoggedIn, apiFetch } from "../utils/api";
 
 const DEFAULT_MARQUEE = "Myanmar2D 85ဆ၊ Myanmar3D 600ဆ၊ Dubai2D 85ဆ — ရောင်းပိတ်ချိန် မနက် 11:58 AM၊ ညနေ 3:58 PM";
 
@@ -18,7 +18,7 @@ const Home = () => {
   const loggedIn = isLoggedIn();
 
   useEffect(() => {
-    fetch("/api/config")
+    apiFetch("/api/config")
       .then((r) => r.json())
       .then((d) => { if (d?.marquee_text) setMarqueeText(d.marquee_text); })
       .catch(() => {});

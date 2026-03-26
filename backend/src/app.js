@@ -1,7 +1,10 @@
 require("dotenv").config({ path: require("path").join(__dirname, "../../.env") });
 const express = require("express");
 const cors = require("cors");
+const helmet = require("helmet");
 const path = require("path");
+
+const { generalLimiter, authLimiter, betLimiter, requireAppHeader, sanitizeBody } = require("./middleware/security");
 
 const authRoutes = require("./routes/auth");
 const walletRoutes = require("./routes/wallet");
@@ -12,45 +15,90 @@ const adminRoutes = require("./routes/admin");
 const app = express();
 const PORT = process.env.BACKEND_PORT || 8000;
 
-app.use(cors({ origin: "*", credentials: true }));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// ── Security headers (helmet) ───────────────────────────────────────────────
+app.use(helmet({
+  contentSecurityPolicy: false,
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+}));
 
+// Hide server info
+app.disable("x-powered-by");
+
+// ── CORS — only allow Replit dev domain + localhost proxy ──────────────────
+const ALLOWED_ORIGINS = [
+  /^https?:\/\/localhost(:\d+)?$/,
+  /^https:\/\/.*\.replit\.dev$/,
+  /^https:\/\/.*\.replit\.app$/,
+  /^https:\/\/.*\.sisko\.replit\.dev$/,
+];
+app.use(cors({
+  origin: (origin, cb) => {
+    // Allow requests with no origin (mobile apps, Postman through proxy, server-to-server)
+    // but still require X-App-Key header
+    if (!origin) return cb(null, true);
+    const allowed = ALLOWED_ORIGINS.some((re) => re.test(origin));
+    cb(allowed ? null : new Error("CORS not allowed"), allowed);
+  },
+  credentials: true,
+}));
+
+// ── Body size limit (prevent large payload attacks) ────────────────────────
+app.use(express.json({ limit: "2mb" }));
+app.use(express.urlencoded({ extended: true, limit: "2mb" }));
+
+// ── Input sanitization ─────────────────────────────────────────────────────
+app.use(sanitizeBody);
+
+// ── General rate limit for all API routes ─────────────────────────────────
+app.use("/api", generalLimiter);
+
+// ── Static uploads (no auth/header required for image display) ────────────
 app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
 
-app.use("/api/auth", authRoutes);
-app.use("/api/wallet", walletRoutes);
-app.use("/api/lottery", lotteryRoutes);
-app.use("/api/notifications", notificationRoutes);
-app.use("/api/admin", adminRoutes);
-
+// ── Health check (public, no header required) ─────────────────────────────
 app.get("/api/health", (req, res) => {
-  res.json({ status: "ok", timestamp: new Date().toISOString() });
+  res.json({ status: "ok" });
 });
 
-// Public config endpoint (no auth required)
+// ── Public config (no auth, but requires app header) ──────────────────────
 const pool = require("./db");
-app.get("/api/config", async (req, res) => {
+app.get("/api/config", requireAppHeader, async (req, res) => {
   try {
     const result = await pool.query("SELECT key, value FROM lottery_config");
     const config = {};
     result.rows.forEach((r) => { config[r.key] = r.value; });
     res.json(config);
-  } catch (err) {
+  } catch {
     res.status(500).json({ error: "Server error" });
   }
 });
 
+// ── Apply app-header guard + strict rate limits per route group ────────────
+app.use("/api/auth", requireAppHeader, authLimiter, authRoutes);
+app.use("/api/wallet", requireAppHeader, walletRoutes);
+app.use("/api/lottery", requireAppHeader, lotteryRoutes);
+app.use("/api/notifications", requireAppHeader, notificationRoutes);
+app.use("/api/admin", requireAppHeader, adminRoutes);
+
+// ── Extra bet-specific rate limit on bet endpoints ────────────────────────
+app.use("/api/lottery/bet", betLimiter);
+
+// ── 404 handler ───────────────────────────────────────────────────────────
+app.use((req, res) => res.status(404).json({ message: "Not found" }));
+
+// ── Global error handler ──────────────────────────────────────────────────
+app.use((err, req, res, _next) => {
+  if (err.message === "CORS not allowed") {
+    return res.status(403).json({ message: "Forbidden" });
+  }
+  console.error(err.stack);
+  res.status(500).json({ message: "Internal server error" });
+});
+
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`TwoDbet Backend running on http://localhost:${PORT}`);
-
-  // Start auto-publish scheduler (checks external API every 60s)
   const { startAutoPublish } = require("./services/autoPublishScheduler");
   startAutoPublish();
 });
 
 module.exports = app;
-// Note: To serve built frontend in production, add:
-// const path = require('path');
-// app.use(express.static(path.join(__dirname, '../../dist')));
-// app.get('*', (req, res) => res.sendFile(path.join(__dirname, '../../dist/index.html')));
