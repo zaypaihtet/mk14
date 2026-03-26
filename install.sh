@@ -3,7 +3,7 @@
 #  TwoDbet VPS Installer
 #  Usage: sudo bash install.sh
 # ═══════════════════════════════════════════════════════════════
-set -e
+set -uo pipefail
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
 BLUE='\033[0;34m'; CYAN='\033[0;36m'; BOLD='\033[1m'; NC='\033[0m'
@@ -210,16 +210,25 @@ echo ""
 echo -e "${CYAN}── Dependencies တပ်ဆင်နေသည် ─────────────────────${NC}"
 
 info "Backend npm install..."
-cd "$PROJECT_DIR/backend" && npm install --production > /dev/null 2>&1
-success "Backend dependencies တပ်ဆင်ပြီး"
+if OUT=$(cd "$PROJECT_DIR/backend" && npm install --production 2>&1); then
+  success "Backend dependencies တပ်ဆင်ပြီး"
+else
+  error "Backend npm install မရပါ:\n$OUT"
+fi
 
 info "Frontend npm install..."
-cd "$PROJECT_DIR" && npm install > /dev/null 2>&1
-success "Frontend dependencies တပ်ဆင်ပြီး"
+if OUT=$(cd "$PROJECT_DIR" && npm install 2>&1); then
+  success "Frontend dependencies တပ်ဆင်ပြီး"
+else
+  error "Frontend npm install မရပါ:\n$OUT"
+fi
 
 info "Frontend build လုပ်နေသည် (ခဏစောင့်ပါ)..."
-cd "$PROJECT_DIR" && npm run build > /dev/null 2>&1
-success "Frontend build ပြီးပါပြီ → $PROJECT_DIR/dist/"
+if OUT=$(cd "$PROJECT_DIR" && npm run build 2>&1); then
+  success "Frontend build ပြီးပါပြီ → $PROJECT_DIR/dist/"
+else
+  error "Frontend build မရပါ:\n$OUT"
+fi
 
 # ── 7. PM2 setup ──────────────────────────────────────────────
 echo ""
