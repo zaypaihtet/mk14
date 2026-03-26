@@ -23,6 +23,7 @@ const ALLOWED_ORIGINS = [
   /^https:\/\/.*\.replit\.dev$/,
   /^https:\/\/.*\.replit\.app$/,
   /^https:\/\/.*\.sisko\.replit\.dev$/,
+  /^https?:\/\/twod\.high-value\.xyz$/,
 ];
 app.use(cors({
   origin: (origin, cb) => {
