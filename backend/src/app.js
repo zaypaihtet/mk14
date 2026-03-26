@@ -46,6 +46,10 @@ app.use(sanitizeBody);
 // ── Static uploads (no auth/header required for image display) ────────────
 app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
 
+// ── Serve React frontend static files ─────────────────────────────────────
+const FRONTEND_DIST = path.join(__dirname, "../../dist");
+app.use(express.static(FRONTEND_DIST));
+
 // ── Health check (public, no header required) ─────────────────────────────
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok" });
