@@ -43,6 +43,39 @@ router.get("/number-status/2d", async (req, res) => {
     res.json(data);
   } catch (err) { res.status(500).json({ message: err.message }); }
 });
+// Public: 3D number status (blocked + today totals vs limits)
+router.get("/number-status/3d", async (req, res) => {
+  try {
+    const limits = await pool.query("SELECT * FROM lottery_number_limits_3d");
+    const totals = await pool.query(`
+      SELECT elem AS number, SUM(amount)::int AS today_total
+      FROM lottery_bets_3d,
+           jsonb_array_elements_text(numbers::jsonb) AS elem
+      WHERE bet_date = CURRENT_DATE
+      GROUP BY elem
+    `);
+    const limitsMap = {};
+    limits.rows.forEach((r) => { limitsMap[r.number.trim()] = r; });
+    const totalsMap = {};
+    totals.rows.forEach((r) => { totalsMap[r.number] = r.today_total; });
+
+    const data = Array.from({ length: 1000 }, (_, i) => {
+      const n = i.toString().padStart(3, "0");
+      const lim = limitsMap[n] || { is_blocked: false, day_limit: 0 };
+      const today_total = parseInt(totalsMap[n]) || 0;
+      const is_full = lim.day_limit > 0 && today_total >= lim.day_limit;
+      return {
+        number: n,
+        is_blocked: lim.is_blocked || is_full,
+        day_limit: lim.day_limit,
+        today_total,
+        is_full,
+      };
+    });
+    res.json(data);
+  } catch (err) { res.status(500).json({ message: err.message }); }
+});
+
 router.post("/bet/2d", authenticate, placeBet2D);
 router.post("/bet/3d", authenticate, placeBet3D);
 router.get("/history/2d", authenticate, getBettingHistory2D);

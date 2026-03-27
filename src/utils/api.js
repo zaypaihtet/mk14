@@ -88,11 +88,15 @@ export const api = {
     getNumberLimits2D: () => request("GET", "/admin/number-limits/2d"),
     updateNumberLimits2D: (updates) => request("PUT", "/admin/number-limits/2d", { updates }),
     setGlobalLimit2D: (day_limit) => request("PATCH", "/admin/number-limits/2d/global", { day_limit }),
+    getNumberLimits3D: (range = 0) => request("GET", `/admin/number-limits/3d?range=${range}`),
+    updateNumberLimits3D: (updates) => request("PUT", "/admin/number-limits/3d", { updates }),
+    setGlobalLimit3D: (day_limit) => request("PATCH", "/admin/number-limits/3d/global", { day_limit }),
     testTelegram: () => request("POST", "/admin/telegram/test"),
   },
 
   // Number status (public — no auth)
   getNumberStatus2D: () => request("GET", "/lottery/number-status/2d"),
+  getNumberStatus3D: () => request("GET", "/lottery/number-status/3d"),
 };
 
 // Drop-in fetch replacement that adds the security header automatically

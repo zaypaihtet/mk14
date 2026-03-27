@@ -105,6 +105,41 @@ const placeBet3D = async (req, res) => {
   const total = perBet * numbers.length;
 
   try {
+    // ── Check blocked numbers & day limits ──────────────────────
+    const limitsResult = await pool.query(
+      "SELECT number, is_blocked, day_limit FROM lottery_number_limits_3d WHERE TRIM(number) = ANY($1)",
+      [numbers]
+    );
+    const totalsResult = await pool.query(
+      `SELECT elem AS number, SUM(amount)::int AS today_total
+       FROM lottery_bets_3d,
+            jsonb_array_elements_text(numbers::jsonb) AS elem
+       WHERE bet_date = CURRENT_DATE AND elem = ANY($1)
+       GROUP BY elem`,
+      [numbers]
+    );
+    const limMap = {};
+    limitsResult.rows.forEach((r) => { limMap[r.number.trim()] = r; });
+    const totMap = {};
+    totalsResult.rows.forEach((r) => { totMap[r.number] = r.today_total; });
+
+    for (const n of numbers) {
+      const lim = limMap[n];
+      if (lim?.is_blocked) {
+        return res.status(400).json({ message: `${n} နံပါတ်ကို ပိတ်ထားသည်` });
+      }
+      if (lim?.day_limit > 0) {
+        const already = parseInt(totMap[n]) || 0;
+        const remaining = lim.day_limit - already;
+        if (remaining <= 0) {
+          return res.status(400).json({ message: `${n} — ထိုးနိုင်သောဖိုး ပြည့်ပြီ` });
+        }
+        if (perBet > remaining) {
+          return res.status(400).json({ message: `${n} — ကျန်ထိုးနိုင်သောဖိုး ${remaining.toLocaleString()} ကျပ်သာ` });
+        }
+      }
+    }
+
     const multiplierVal = await getConfigVal("multiplier_3d", "600");
     const multiplier = parseInt(multiplierVal) || 600;
 

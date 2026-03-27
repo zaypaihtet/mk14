@@ -30,6 +30,7 @@ import AdminSettings from "./src/admin/pages/AdminSettings";
 import AdminNotificationsPage from "./src/admin/pages/AdminNotificationsPage";
 import AdminHolidayPage from "./src/admin/pages/AdminHolidayPage";
 import AdminNumberLimits from "./src/admin/pages/AdminNumberLimits";
+import AdminNumberLimits3D from "./src/admin/pages/AdminNumberLimits3D";
 import PrivateRoute from "./src/components/PrivateRoute";
 
 const router = createBrowserRouter([
@@ -94,6 +95,7 @@ const router = createBrowserRouter([
           { path: "settings", element: <AdminSettings /> },
           { path: "holidays", element: <AdminHolidayPage /> },
           { path: "number-limits", element: <AdminNumberLimits /> },
+          { path: "number-limits-3d", element: <AdminNumberLimits3D /> },
         ],
       },
     ],

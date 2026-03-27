@@ -36,6 +36,7 @@ const AdminLayout = () => {
     { path: "/admin/notifications", icon: Bell, label: "Notifications" },
     { path: "/admin/holidays", icon: CalendarOff, label: "ပိတ်ရက် (Holidays)" },
     { path: "/admin/number-limits", icon: ShieldBan, label: "2D Limits / ပိတ်ဆို့" },
+    { path: "/admin/number-limits-3d", icon: ShieldBan, label: "3D Limits / ပိတ်ဆို့" },
     { path: "/admin/settings", icon: Settings, label: "Settings" },
   ];
 

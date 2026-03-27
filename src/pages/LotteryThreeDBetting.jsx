@@ -29,6 +29,7 @@ export default function LotteryThreeDBetting() {
 
   const [isHoliday, setIsHoliday] = useState(false);
   const [holidayDescription, setHolidayDesc] = useState("");
+  const [numberStatus, setNumberStatus] = useState({}); // { "123": { is_blocked, day_limit, today_total } }
 
   const showToast = (msg, type = "success") => {
     setToast({ msg, type });
@@ -45,6 +46,13 @@ export default function LotteryThreeDBetting() {
         if (d.isHoliday) { setIsHoliday(true); setHolidayDesc(d.description || "ပိတ်ရက်"); }
       })
       .catch(() => {});
+    api.getNumberStatus3D()
+      .then((data) => {
+        const map = {};
+        data.forEach((n) => { map[n.number] = n; });
+        setNumberStatus(map);
+      })
+      .catch(() => {});
   }, []);
 
   const displayNumbers =
@@ -52,7 +60,11 @@ export default function LotteryThreeDBetting() {
       ? generateNumbersForRange(selectedHundredRange)
       : generateNumbersForRange(0);
 
-  const onToggleNumber = (num) => setSelectedNumbers(toggleNumber(selectedNumbers, num));
+  const onToggleNumber = (num) => {
+    const status = numberStatus[num];
+    if (status?.is_blocked) { showToast(`${num} နံပါတ်ကို ပိတ်ထားသည်`, "error"); return; }
+    setSelectedNumbers(toggleNumber(selectedNumbers, num));
+  };
   const onManualNumberChange = (value) => setManualNumber(cleanManualInput(value));
 
   const onAddManualNumber = () => {
@@ -243,21 +255,36 @@ export default function LotteryThreeDBetting() {
 
             {/* Numbers Grid */}
             <div className="px-4">
-              <div className="grid grid-cols-7 gap-2">
-                {displayNumbers.map((num) => (
-                  <button
-                    key={num}
-                    onClick={() => onToggleNumber(num)}
-                    className={`aspect-square p-0 text-sm font-medium border-2 rounded
-                      ${
-                        selectedNumbers.includes(num)
-                          ? "bg-blue-500 text-white border-blue-600 hover:bg-blue-600"
-                          : "bg-white text-black border-gray-300 hover:bg-gray-100"
-                      }`}
-                  >
-                    {num}
-                  </button>
-                ))}
+              {/* Legend */}
+              <div className="flex gap-3 text-[10px] text-gray-600 mb-2 flex-wrap">
+                <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded bg-white border border-gray-300 inline-block" /> ပုံမှန်</span>
+                <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded bg-orange-200 border border-orange-400 inline-block" /> Limit နီးပြီ</span>
+                <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded bg-red-200 border border-red-400 inline-block" /> ပိတ် / ပြည့်</span>
+              </div>
+              <div className="grid grid-cols-7 gap-1.5">
+                {displayNumbers.map((num) => {
+                  const status = numberStatus[num];
+                  const isBlocked = status?.is_blocked;
+                  const pct = status?.day_limit > 0 ? status.today_total / status.day_limit : 0;
+                  const isNearFull = !isBlocked && pct >= 0.8 && pct < 1;
+                  const isSelected = selectedNumbers.includes(num);
+
+                  let cls = "bg-white text-black border-gray-300 hover:bg-gray-100";
+                  if (isSelected) cls = "bg-blue-500 text-white border-blue-600 hover:bg-blue-600";
+                  else if (isBlocked) cls = "bg-red-200 text-red-700 border-red-400 cursor-not-allowed opacity-80";
+                  else if (isNearFull) cls = "bg-orange-100 text-orange-700 border-orange-400 hover:bg-orange-200";
+
+                  return (
+                    <button
+                      key={num}
+                      onClick={() => onToggleNumber(num)}
+                      disabled={isBlocked}
+                      className={`aspect-square p-0 text-sm font-medium border-2 rounded ${cls}`}
+                    >
+                      {num}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </>
