@@ -133,23 +133,31 @@ const AdminHolidayPage = () => {
 
         {/* Default holiday list preview */}
         <div className="bg-yellow-50 rounded-xl p-3">
-          <p className="text-xs font-medium text-yellow-800 mb-2">ပါ၀င်မည့် ပိတ်ရက်များ ({seedYear}):</p>
-          <div className="grid grid-cols-2 gap-1">
+          <p className="text-xs font-medium text-yellow-800 mb-1">Thailand SET ပိတ်ရက်များ ({seedYear}) — ၁၉ ရက်:</p>
+          <p className="text-[10px] text-yellow-600 mb-2">* Buddhist holidays — lunar calendar ကြောင့် နှစ်အလိုက် ကွဲပြားသည်</p>
+          <div className="grid grid-cols-2 gap-x-3 gap-y-0.5">
             {[
-              `${seedYear}-01-04 — လွတ်လပ်ရေးနေ့`,
-              `${seedYear}-02-12 — ပြည်ထောင်စုနေ့`,
-              `${seedYear}-03-02 — တောင်သူလယ်သမားနေ့`,
-              `${seedYear}-03-27 — တပ်မတော်နေ့`,
-              `${seedYear}-04-13 — သင်္ကြန် ပထမနေ့`,
-              `${seedYear}-04-14 — သင်္ကြန် ဒုတိယနေ့`,
-              `${seedYear}-04-15 — သင်္ကြန် တတိယနေ့`,
-              `${seedYear}-04-16 — သင်္ကြန် စတုတ္ထနေ့`,
-              `${seedYear}-04-17 — နှစ်သစ်ကူးနေ့`,
-              `${seedYear}-05-01 — အလုပ်သမားနေ့`,
-              `${seedYear}-07-19 — အာဇာနည်နေ့`,
-              `${seedYear}-12-25 — ခရစ်မတ်နေ့`,
+              "01-01 — New Year's Day",
+              "01-02 — New Year Holiday",
+              "03-03* — Makha Bucha Day",
+              "04-06 — Chakri Day",
+              "04-13 — Songkran Day 1",
+              "04-14 — Songkran Day 2",
+              "04-15 — Songkran Day 3",
+              "05-01 — Labour Day",
+              "05-04 — Coronation Day",
+              "06-01* — Visakha Bucha Day",
+              "06-03 — Queen Suthida Birthday",
+              "07-28 — King's Birthday",
+              "07-29* — Asarnha Bucha Day",
+              "08-12 — Queen's Birthday",
+              "10-13 — King Bhumibol Memorial",
+              "10-23 — King Chulalongkorn Day",
+              "12-07 — King Rama IX OBS",
+              "12-10 — Constitution Day",
+              "12-31 — New Year's Eve",
             ].map((item, i) => (
-              <p key={i} className="text-xs text-yellow-700">{item}</p>
+              <p key={i} className="text-[11px] text-yellow-700">{item}</p>
             ))}
           </div>
         </div>

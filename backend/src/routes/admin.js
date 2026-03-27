@@ -242,22 +242,42 @@ router.delete("/holidays/:id", async (req, res) => {
   } catch { res.status(500).json({ message: "Server error" }); }
 });
 
-// Seed default Myanmar public holidays for current + next year
+// Seed default Thailand SET (Stock Exchange of Thailand) public holidays
 router.post("/holidays/seed-defaults", async (req, res) => {
   const year = req.body.year || new Date().getFullYear();
+  // Thailand SET official holidays
+  // Fixed-date holidays apply every year.
+  // Buddhist holidays (*) vary by lunar calendar — dates below are for 2026 specifically.
+  // Buddhist holiday year-maps (approximate):
+  const buddhistDates = {
+    makha:   { 2025: "02-12", 2026: "03-03", 2027: "02-20" },
+    visakha: { 2025: "05-12", 2026: "06-01", 2027: "05-22" },
+    asarnha: { 2025: "07-10", 2026: "07-29", 2027: "07-18" },
+  };
+  const mkd = buddhistDates.makha[year]   || "03-03";
+  const vbd = buddhistDates.visakha[year] || "06-01";
+  const asd = buddhistDates.asarnha[year] || "07-29";
+
   const defaults = [
-    { date: `${year}-01-04`, desc: "လွတ်လပ်ရေးနေ့" },
-    { date: `${year}-02-12`, desc: "ပြည်ထောင်စုနေ့" },
-    { date: `${year}-03-02`, desc: "တောင်သူလယ်သမားနေ့" },
-    { date: `${year}-03-27`, desc: "တပ်မတော်နေ့" },
-    { date: `${year}-04-13`, desc: "သင်္ကြန် ပထမနေ့" },
-    { date: `${year}-04-14`, desc: "သင်္ကြန် ဒုတိယနေ့" },
-    { date: `${year}-04-15`, desc: "သင်္ကြန် တတိယနေ့" },
-    { date: `${year}-04-16`, desc: "သင်္ကြန် စတုတ္ထနေ့" },
-    { date: `${year}-04-17`, desc: "နှစ်သစ်ကူးနေ့" },
-    { date: `${year}-05-01`, desc: "အလုပ်သမားနေ့" },
-    { date: `${year}-07-19`, desc: "အာဇာနည်နေ့" },
-    { date: `${year}-12-25`, desc: "ခရစ်မတ်နေ့" },
+    { date: `${year}-01-01`, desc: "New Year's Day (နှစ်သစ်ကူး)" },
+    { date: `${year}-01-02`, desc: "New Year Holiday" },
+    { date: `${year}-${mkd}`, desc: "Makha Bucha Day* (မာခပူဂျာနေ့)" },
+    { date: `${year}-04-06`, desc: "Chakri Day (ချာကရီ နေ့)" },
+    { date: `${year}-04-13`, desc: "Songkran Festival Day 1 (သွန်ကြမ်း ၁)" },
+    { date: `${year}-04-14`, desc: "Songkran Festival Day 2 (သွန်ကြမ်း ၂)" },
+    { date: `${year}-04-15`, desc: "Songkran Festival Day 3 (သွန်ကြမ်း ၃)" },
+    { date: `${year}-05-01`, desc: "Labour Day (အလုပ်သမားနေ့)" },
+    { date: `${year}-05-04`, desc: "Coronation Day (ပြည်မင်းနေ့)" },
+    { date: `${year}-${vbd}`, desc: "Visakha Bucha Day* (ဝိသာခါပူဂျာ)" },
+    { date: `${year}-06-03`, desc: "Queen Suthida's Birthday" },
+    { date: `${year}-07-28`, desc: "King Vajiralongkorn's Birthday" },
+    { date: `${year}-${asd}`, desc: "Asarnha Bucha Day* (အာသာဠပူဂျာ)" },
+    { date: `${year}-08-12`, desc: "Queen's Birthday / Mother's Day" },
+    { date: `${year}-10-13`, desc: "King Bhumibol Memorial Day" },
+    { date: `${year}-10-23`, desc: "King Chulalongkorn Memorial Day" },
+    { date: `${year}-12-07`, desc: "King Rama IX Birthday OBS" },
+    { date: `${year}-12-10`, desc: "Constitution Day (ဖွဲ့စည်းပုံ နေ့)" },
+    { date: `${year}-12-31`, desc: "New Year's Eve" },
   ];
   try {
     let added = 0;
