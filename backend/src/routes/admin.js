@@ -218,7 +218,9 @@ router.patch("/number-limits/2d/global", async (req, res) => {
 // ── Holiday management ────────────────────────────────────────────────────────
 router.get("/holidays", async (req, res) => {
   try {
-    const r = await pool.query("SELECT * FROM lottery_holidays ORDER BY holiday_date ASC");
+    const r = await pool.query(
+      "SELECT id, TO_CHAR(holiday_date, 'YYYY-MM-DD') AS holiday_date, description, created_at FROM lottery_holidays ORDER BY holiday_date ASC"
+    );
     res.json(r.rows);
   } catch { res.status(500).json({ message: "Server error" }); }
 });

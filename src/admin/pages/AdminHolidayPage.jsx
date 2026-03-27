@@ -2,20 +2,25 @@ import React, { useEffect, useState } from "react";
 import { Trash2, Plus, CalendarOff, AlertCircle, Info, Sparkles } from "lucide-react";
 import { api } from "../../utils/api";
 
+const toYMD = (d) => (d ? String(d).slice(0, 10) : "");
+
 const fmt = (d) => {
-  if (!d) return "";
-  const dt = new Date(d + "T00:00:00Z");
+  const ymd = toYMD(d);
+  if (!ymd) return "";
+  const dt = new Date(ymd + "T00:00:00Z");
   return dt.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" });
 };
 
 const dayName = (d) => {
-  if (!d) return "";
+  const ymd = toYMD(d);
+  if (!ymd) return "";
   const days = ["တနင်္ဂနွေ", "တနင်္လာ", "အင်္ဂါ", "ဗုဒ္ဓဟူး", "ကြာသပတေး", "သောကြာ", "စနေ"];
-  return days[new Date(d + "T00:00:00Z").getUTCDay()];
+  return days[new Date(ymd + "T00:00:00Z").getUTCDay()];
 };
 
 const isWeekend = (d) => {
-  const day = new Date(d + "T00:00:00Z").getUTCDay();
+  const ymd = toYMD(d);
+  const day = new Date(ymd + "T00:00:00Z").getUTCDay();
   return day === 0 || day === 6; // Sun or Sat
 };
 
