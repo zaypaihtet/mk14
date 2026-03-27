@@ -238,7 +238,7 @@ const AdminHolidayPage = () => {
       {past.length > 0 && (
         <div className="bg-white rounded-2xl shadow-sm border p-4">
           <h2 className="text-sm font-semibold text-gray-500 mb-3">
-            ကန်တော့ ပိတ်ရက်များ <span className="text-gray-400 font-normal">({past.length})</span>
+            ပြီးသွားသော ပိတ်ရက်များ <span className="text-gray-400 font-normal">({past.length})</span>
           </h2>
           <div className="space-y-2">
             {past.map(h => (
