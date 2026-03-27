@@ -84,7 +84,13 @@ export const api = {
     getHolidays: () => request("GET", "/admin/holidays"),
     addHoliday: (data) => request("POST", "/admin/holidays", data),
     deleteHoliday: (id) => request("DELETE", `/admin/holidays/${id}`),
+    getNumberLimits2D: () => request("GET", "/admin/number-limits/2d"),
+    updateNumberLimits2D: (updates) => request("PUT", "/admin/number-limits/2d", { updates }),
+    setGlobalLimit2D: (day_limit) => request("PATCH", "/admin/number-limits/2d/global", { day_limit }),
   },
+
+  // Number status (public — no auth)
+  getNumberStatus2D: () => request("GET", "/lottery/number-status/2d"),
 };
 
 // Drop-in fetch replacement that adds the security header automatically

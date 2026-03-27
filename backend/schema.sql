@@ -3,6 +3,13 @@
 --  Run: psql -U postgres -d twodbet -f schema.sql
 -- ─────────────────────────────────────────────────────────────
 
+-- ── 2D Number Limits ─────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS lottery_number_limits_2d (
+  number    CHAR(2)  PRIMARY KEY,
+  is_blocked BOOLEAN  NOT NULL DEFAULT FALSE,
+  day_limit  INTEGER  NOT NULL DEFAULT 0
+);
+
 -- ── Users ────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS users (
   id            SERIAL PRIMARY KEY,

@@ -139,6 +139,73 @@ router.delete("/notifications/:id", async (req, res) => {
   }
 });
 
+// ── 2D Number Limits ─────────────────────────────────────────────────────────
+// Helper: get today's total bet per number
+async function getNumberTotals() {
+  const r = await pool.query(`
+    SELECT elem AS number, SUM(amount)::int AS today_total
+    FROM lottery_bets_2d,
+         jsonb_array_elements_text(numbers::jsonb) AS elem
+    WHERE bet_date = CURRENT_DATE
+    GROUP BY elem
+  `);
+  const map = {};
+  r.rows.forEach((row) => { map[row.number] = row.today_total; });
+  return map;
+}
+
+router.get("/number-limits/2d", async (req, res) => {
+  try {
+    const limits = await pool.query("SELECT * FROM lottery_number_limits_2d");
+    const totals = await getNumberTotals();
+    const limitsMap = {};
+    limits.rows.forEach((r) => { limitsMap[r.number] = r; });
+
+    const data = Array.from({ length: 100 }, (_, i) => {
+      const n = i.toString().padStart(2, "0");
+      const lim = limitsMap[n] || { number: n, is_blocked: false, day_limit: 0 };
+      const today_total = totals[n] || 0;
+      return { number: n, is_blocked: lim.is_blocked, day_limit: lim.day_limit, today_total };
+    });
+    res.json(data);
+  } catch (err) { res.status(500).json({ message: err.message }); }
+});
+
+// Bulk update: [{number, is_blocked, day_limit}]
+router.put("/number-limits/2d", async (req, res) => {
+  try {
+    const { updates } = req.body;
+    if (!Array.isArray(updates)) return res.status(400).json({ message: "updates array လိုသည်" });
+    for (const u of updates) {
+      await pool.query(
+        `INSERT INTO lottery_number_limits_2d (number, is_blocked, day_limit)
+         VALUES ($1, $2, $3)
+         ON CONFLICT (number) DO UPDATE SET is_blocked = $2, day_limit = $3`,
+        [u.number, !!u.is_blocked, parseInt(u.day_limit) || 0]
+      );
+    }
+    res.json({ message: "Updated" });
+  } catch (err) { res.status(500).json({ message: err.message }); }
+});
+
+// Set global day_limit for ALL numbers at once
+router.patch("/number-limits/2d/global", async (req, res) => {
+  try {
+    const { day_limit } = req.body;
+    const limit = parseInt(day_limit) || 0;
+    for (let i = 0; i < 100; i++) {
+      const n = i.toString().padStart(2, "0");
+      await pool.query(
+        `INSERT INTO lottery_number_limits_2d (number, day_limit)
+         VALUES ($1, $2)
+         ON CONFLICT (number) DO UPDATE SET day_limit = $2`,
+        [n, limit]
+      );
+    }
+    res.json({ message: "Global limit updated" });
+  } catch (err) { res.status(500).json({ message: err.message }); }
+});
+
 // ── Holiday management ────────────────────────────────────────────────────────
 router.get("/holidays", async (req, res) => {
   try {

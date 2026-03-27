@@ -30,6 +30,7 @@ import AdminMM2DPage from "./src/admin/pages/AdminMM2DPage";
 import AdminSettings from "./src/admin/pages/AdminSettings";
 import AdminNotificationsPage from "./src/admin/pages/AdminNotificationsPage";
 import AdminHolidayPage from "./src/admin/pages/AdminHolidayPage";
+import AdminNumberLimits from "./src/admin/pages/AdminNumberLimits";
 import PrivateRoute from "./src/components/PrivateRoute";
 
 const router = createBrowserRouter([
@@ -94,6 +95,7 @@ const router = createBrowserRouter([
           { path: "notifications", element: <AdminNotificationsPage /> },
           { path: "settings", element: <AdminSettings /> },
           { path: "holidays", element: <AdminHolidayPage /> },
+          { path: "number-limits", element: <AdminNumberLimits /> },
         ],
       },
     ],

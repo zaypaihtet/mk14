@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Outlet, Link, useLocation, useNavigate } from "react-router";
 import {
   Home, FileText, Users, LogOut, Menu, X,
-  BanknoteArrowUp, BanknoteArrowDown, RadioTower, Settings, UserCog, Bell, CalendarOff,
+  BanknoteArrowUp, BanknoteArrowDown, RadioTower, Settings, UserCog, Bell, CalendarOff, ShieldBan,
 } from "lucide-react";
 import { removeToken } from "../utils/api";
 
@@ -36,6 +36,7 @@ const AdminLayout = () => {
     { path: "/admin/withdraw", icon: BanknoteArrowDown, label: "Withdraw" },
     { path: "/admin/notifications", icon: Bell, label: "Notifications" },
     { path: "/admin/holidays", icon: CalendarOff, label: "ပိတ်ရက် (Holidays)" },
+    { path: "/admin/number-limits", icon: ShieldBan, label: "2D Limits / ပိတ်ဆို့" },
     { path: "/admin/settings", icon: Settings, label: "Settings" },
   ];
 

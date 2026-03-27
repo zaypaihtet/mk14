@@ -33,6 +33,7 @@ const LotteryTwoDBetting = () => {
   const [balance, setBalance]       = useState(null);
   const [placing, setPlacing]       = useState(false);
   const [toast, setToast]           = useState(null);
+  const [numberStatus, setNumberStatus] = useState({});
 
   // Session close times from config
   const [morningClose, setMorningClose] = useState("11:58"); // "HH:MM" 24h
@@ -76,6 +77,15 @@ const LotteryTwoDBetting = () => {
       .then((d) => setBalance(d.balance ?? d))
       .catch(() => {});
 
+    // Number status (blocked + limits)
+    api.getNumberStatus2D()
+      .then((data) => {
+        const map = {};
+        data.forEach((s) => { map[s.number] = s; });
+        setNumberStatus(map);
+      })
+      .catch(() => {});
+
     // Auto holiday detection
     api.isHoliday()
       .then((d) => {
@@ -92,10 +102,16 @@ const LotteryTwoDBetting = () => {
   // Generate 00–99
   const numbers = Array.from({ length: 100 }, (_, i) => i.toString().padStart(2, "0"));
 
-  const toggleNumber = (n) =>
+  const toggleNumber = (n) => {
+    const status = numberStatus[n];
+    if (status?.is_blocked) {
+      showToast("error", `${n} နံပါတ်ကို ပိတ်ထားသည်`);
+      return;
+    }
     setSelectedNumbers((prev) =>
       prev.includes(n) ? prev.filter((x) => x !== n) : [...prev, n]
     );
+  };
 
   const handleManualNumberChange = (value) => {
     setManualNumber(value.replace(/[^0-9]/g, "").slice(0, 2));
@@ -329,19 +345,37 @@ const LotteryTwoDBetting = () => {
         {/* 2D Grid */}
         <div className="px-4">
           <div className="grid grid-cols-7 gap-1.5">
-            {numbers.map((n) => (
-              <button
-                key={n}
-                onClick={() => toggleNumber(n)}
-                className={`aspect-square text-sm font-bold rounded-lg border-2 transition-colors ${
-                  selectedNumbers.includes(n)
-                    ? "bg-blue-600 text-white border-blue-700"
-                    : "bg-white text-gray-800 border-gray-200 hover:border-blue-400"
-                }`}
-              >
-                {n}
-              </button>
-            ))}
+            {numbers.map((n) => {
+              const status = numberStatus[n];
+              const isBlocked = status?.is_blocked;
+              const hasLimit = status?.day_limit > 0;
+              const pct = hasLimit ? Math.min(100, Math.round((status.today_total / status.day_limit) * 100)) : 0;
+              const isSelected = selectedNumbers.includes(n);
+
+              let cellClass = "bg-white text-gray-800 border-gray-200 hover:border-blue-400";
+              if (isSelected) cellClass = "bg-blue-600 text-white border-blue-700";
+              else if (isBlocked) cellClass = "bg-red-100 text-red-400 border-red-300 opacity-70 cursor-not-allowed";
+              else if (hasLimit && pct >= 100) cellClass = "bg-red-100 text-red-400 border-red-300 opacity-70 cursor-not-allowed";
+              else if (hasLimit && pct >= 80) cellClass = "bg-orange-50 text-orange-800 border-orange-300";
+              else if (hasLimit) cellClass = "bg-green-50 text-green-800 border-green-300 hover:border-green-500";
+
+              return (
+                <button
+                  key={n}
+                  onClick={() => toggleNumber(n)}
+                  className={`aspect-square text-sm font-bold rounded-lg border-2 transition-colors relative overflow-hidden ${cellClass}`}
+                >
+                  {/* Progress bar underlay */}
+                  {hasLimit && !isSelected && (
+                    <div
+                      className={`absolute bottom-0 left-0 h-1 transition-all ${pct >= 100 ? "bg-red-400" : pct >= 80 ? "bg-orange-400" : "bg-green-400"}`}
+                      style={{ width: `${pct}%` }}
+                    />
+                  )}
+                  <span className="relative">{n}</span>
+                </button>
+              );
+            })}
           </div>
         </div>
         </>)}
