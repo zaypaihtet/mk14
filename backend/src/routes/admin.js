@@ -242,4 +242,36 @@ router.delete("/holidays/:id", async (req, res) => {
   } catch { res.status(500).json({ message: "Server error" }); }
 });
 
+// Seed default Myanmar public holidays for current + next year
+router.post("/holidays/seed-defaults", async (req, res) => {
+  const year = req.body.year || new Date().getFullYear();
+  const defaults = [
+    { date: `${year}-01-04`, desc: "လွတ်လပ်ရေးနေ့" },
+    { date: `${year}-02-12`, desc: "ပြည်ထောင်စုနေ့" },
+    { date: `${year}-03-02`, desc: "တောင်သူလယ်သမားနေ့" },
+    { date: `${year}-03-27`, desc: "တပ်မတော်နေ့" },
+    { date: `${year}-04-13`, desc: "သင်္ကြန် ပထမနေ့" },
+    { date: `${year}-04-14`, desc: "သင်္ကြန် ဒုတိယနေ့" },
+    { date: `${year}-04-15`, desc: "သင်္ကြန် တတိယနေ့" },
+    { date: `${year}-04-16`, desc: "သင်္ကြန် စတုတ္ထနေ့" },
+    { date: `${year}-04-17`, desc: "နှစ်သစ်ကူးနေ့" },
+    { date: `${year}-05-01`, desc: "အလုပ်သမားနေ့" },
+    { date: `${year}-07-19`, desc: "အာဇာနည်နေ့" },
+    { date: `${year}-12-25`, desc: "ခရစ်မတ်နေ့" },
+  ];
+  try {
+    let added = 0;
+    for (const h of defaults) {
+      const result = await pool.query(
+        `INSERT INTO lottery_holidays (holiday_date, description)
+         VALUES ($1, $2)
+         ON CONFLICT (holiday_date) DO NOTHING`,
+        [h.date, h.desc]
+      );
+      if (result.rowCount > 0) added++;
+    }
+    res.json({ message: `${year} ခုနှစ် ပိတ်ရက် ${added} ရက် ထည့်ပြီး (ရှိပြီးသား ${defaults.length - added} ရက် skip)`, added });
+  } catch (err) { res.status(500).json({ message: err.message }); }
+});
+
 module.exports = router;

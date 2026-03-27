@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Trash2, Plus, CalendarOff, AlertCircle, Info } from "lucide-react";
+import { Trash2, Plus, CalendarOff, AlertCircle, Info, Sparkles } from "lucide-react";
 import { api } from "../../utils/api";
 
 const fmt = (d) => {
@@ -14,13 +14,18 @@ const dayName = (d) => {
   return days[new Date(d + "T00:00:00Z").getUTCDay()];
 };
 
-const isSunday = (d) => new Date(d + "T00:00:00Z").getUTCDay() === 0;
+const isWeekend = (d) => {
+  const day = new Date(d + "T00:00:00Z").getUTCDay();
+  return day === 0 || day === 6; // Sun or Sat
+};
 
 const AdminHolidayPage = () => {
   const [holidays, setHolidays] = useState([]);
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState({ holiday_date: "", description: "" });
   const [adding, setAdding] = useState(false);
+  const [seeding, setSeeding] = useState(false);
+  const [seedYear, setSeedYear] = useState(new Date().getFullYear());
   const [msg, setMsg] = useState("");
 
   const load = () => {
@@ -32,13 +37,13 @@ const AdminHolidayPage = () => {
 
   useEffect(() => { load(); }, []);
 
-  const showMsg = (m) => { setMsg(m); setTimeout(() => setMsg(""), 3000); };
+  const showMsg = (m) => { setMsg(m); setTimeout(() => setMsg(""), 4000); };
 
   const handleAdd = async (e) => {
     e.preventDefault();
     if (!form.holiday_date || !form.description) return;
-    if (isSunday(form.holiday_date)) {
-      showMsg("တနင်္ဂနွေနေ့ကို ထည့်မည်မဟုတ်ပါ (Auto-detect ဖြင့် ပိတ်ထားသည်)");
+    if (isWeekend(form.holiday_date)) {
+      showMsg("စနေ / တနင်္ဂနွေ နေ့ကို ထည့်မည်မဟုတ်ပါ (Auto-detect ဖြင့် ပိတ်ထားသည်)");
       return;
     }
     setAdding(true);
@@ -49,6 +54,17 @@ const AdminHolidayPage = () => {
       showMsg("✓ ပိတ်ရက် ထည့်ပြီးပါပြီ");
     } catch (err) { showMsg("Error: " + err.message); }
     finally { setAdding(false); }
+  };
+
+  const handleSeedDefaults = async () => {
+    if (!confirm(`${seedYear} ခုနှစ် မြန်မာ့နိုင်ငံတော် ပိတ်ရက်များ (၁၂ ရက်) ထည့်မည်လား?\n(ရှိပြီးသား ပိတ်ရက်များ ထပ်မထည့်ပါ)`)) return;
+    setSeeding(true);
+    try {
+      const r = await api.admin.seedDefaultHolidays(seedYear);
+      load();
+      showMsg("✓ " + r.message);
+    } catch (err) { showMsg("Error: " + err.message); }
+    finally { setSeeding(false); }
   };
 
   const handleDelete = async (id, desc) => {
@@ -74,7 +90,7 @@ const AdminHolidayPage = () => {
       <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 flex gap-2 text-sm text-blue-700">
         <Info className="h-4 w-4 mt-0.5 shrink-0" />
         <div>
-          <b>Auto-detect</b> — <b>တနင်္ဂနွေ</b> နေ့များကို အလိုအလျောက် ပိတ်ရက်အဖြစ် သတ်မှတ်သည်။
+          <b>Auto-detect</b> — <b>စနေ</b> နှင့် <b>တနင်္ဂနွေ</b> နေ့များကို အလိုအလျောက် ပိတ်ရက်အဖြစ် သတ်မှတ်သည်။
           အောက်ပါ ဇယားတွင် မြန်မာ့အများပြည်သူ ပိတ်ရက်များ ထည့်သွင်းပါ။
           ပိတ်ရက်တွင် 2D နှင့် 3D ထိုးခွင့် ပိတ်သွားမည်ဖြစ်သည်။
         </div>
@@ -82,15 +98,67 @@ const AdminHolidayPage = () => {
 
       {/* Success/Error message */}
       {msg && (
-        <div className={`text-center text-sm py-2 px-3 rounded-lg ${msg.startsWith("Error") || msg.startsWith("တနင်") ? "bg-red-100 text-red-700" : "bg-green-100 text-green-700"}`}>
+        <div className={`text-center text-sm py-2 px-3 rounded-lg ${msg.startsWith("Error") || msg.startsWith("စနေ") ? "bg-red-100 text-red-700" : "bg-green-100 text-green-700"}`}>
           {msg}
         </div>
       )}
 
+      {/* Seed defaults */}
+      <div className="bg-white rounded-2xl shadow-sm border p-4 space-y-3">
+        <h2 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+          <Sparkles className="h-4 w-4 text-yellow-500" /> မြန်မာ့နိုင်ငံတော် ပိတ်ရက် Default ထည့်မည်
+        </h2>
+        <p className="text-xs text-gray-500">
+          လွတ်လပ်ရေးနေ့, ပြည်ထောင်စုနေ့, တပ်မတော်နေ့, သင်္ကြန်, နှစ်သစ်ကူး, အလုပ်သမားနေ့, အာဇာနည်နေ့, ခရစ်မတ် — ၁၂ ရက် ပါ၀င်သည်
+        </p>
+        <div className="flex gap-2 items-center">
+          <select
+            value={seedYear}
+            onChange={e => setSeedYear(parseInt(e.target.value))}
+            className="border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
+          >
+            {[new Date().getFullYear() - 1, new Date().getFullYear(), new Date().getFullYear() + 1].map(y => (
+              <option key={y} value={y}>{y}</option>
+            ))}
+          </select>
+          <button
+            onClick={handleSeedDefaults}
+            disabled={seeding}
+            className="flex-1 bg-yellow-500 text-white rounded-xl py-2 text-sm font-semibold hover:bg-yellow-600 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+          >
+            <Sparkles className="h-4 w-4" />
+            {seeding ? "ထည့်နေသည်..." : `${seedYear} ပိတ်ရက်များ Default ထည့်မည်`}
+          </button>
+        </div>
+
+        {/* Default holiday list preview */}
+        <div className="bg-yellow-50 rounded-xl p-3">
+          <p className="text-xs font-medium text-yellow-800 mb-2">ပါ၀င်မည့် ပိတ်ရက်များ ({seedYear}):</p>
+          <div className="grid grid-cols-2 gap-1">
+            {[
+              `${seedYear}-01-04 — လွတ်လပ်ရေးနေ့`,
+              `${seedYear}-02-12 — ပြည်ထောင်စုနေ့`,
+              `${seedYear}-03-02 — တောင်သူလယ်သမားနေ့`,
+              `${seedYear}-03-27 — တပ်မတော်နေ့`,
+              `${seedYear}-04-13 — သင်္ကြန် ပထမနေ့`,
+              `${seedYear}-04-14 — သင်္ကြန် ဒုတိယနေ့`,
+              `${seedYear}-04-15 — သင်္ကြန် တတိယနေ့`,
+              `${seedYear}-04-16 — သင်္ကြန် စတုတ္ထနေ့`,
+              `${seedYear}-04-17 — နှစ်သစ်ကူးနေ့`,
+              `${seedYear}-05-01 — အလုပ်သမားနေ့`,
+              `${seedYear}-07-19 — အာဇာနည်နေ့`,
+              `${seedYear}-12-25 — ခရစ်မတ်နေ့`,
+            ].map((item, i) => (
+              <p key={i} className="text-xs text-yellow-700">{item}</p>
+            ))}
+          </div>
+        </div>
+      </div>
+
       {/* Add holiday form */}
       <form onSubmit={handleAdd} className="bg-white rounded-2xl shadow-sm border p-4 space-y-3">
         <h2 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-          <Plus className="h-4 w-4 text-green-600" /> ပိတ်ရက် ထည့်မည်
+          <Plus className="h-4 w-4 text-green-600" /> ပိတ်ရက် ကိုယ်တိုင် ထည့်မည်
         </h2>
         <div className="grid grid-cols-2 gap-3">
           <div>
@@ -109,7 +177,7 @@ const AdminHolidayPage = () => {
               type="text"
               value={form.description}
               onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
-              placeholder="ဥပမာ — လွတ်လပ်ရေးနေ့"
+              placeholder="ဥပမာ — ဗုဒ္ဓနေ့"
               required
               className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400"
             />
@@ -131,7 +199,7 @@ const AdminHolidayPage = () => {
         </h2>
         {loading && <p className="text-gray-400 text-sm">Loading...</p>}
         {!loading && upcoming.length === 0 && (
-          <p className="text-gray-400 text-sm text-center py-4">ပိတ်ရက် မရှိသေးပါ</p>
+          <p className="text-gray-400 text-sm text-center py-4">ပိတ်ရက် မရှိသေးပါ — အထက်မှ "Default ထည့်မည်" နှိပ်ပါ</p>
         )}
         <div className="space-y-2">
           {upcoming.map(h => (
@@ -153,7 +221,7 @@ const AdminHolidayPage = () => {
         </div>
       </div>
 
-      {/* Past holidays (collapsed) */}
+      {/* Past holidays */}
       {past.length > 0 && (
         <div className="bg-white rounded-2xl shadow-sm border p-4">
           <h2 className="text-sm font-semibold text-gray-500 mb-3">
@@ -178,10 +246,10 @@ const AdminHolidayPage = () => {
         </div>
       )}
 
-      {/* Sunday auto-detect note */}
+      {/* Weekend auto-detect note */}
       <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3 flex gap-2 text-sm text-yellow-800">
         <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
-        <span><b>တနင်္ဂနွေ</b> ပိတ်ရက်ကို ဤနေရာတွင် ထည့်ရန်မလိုပါ — System မှ အလိုအလျောက် စစ်ဆေးသည်။</span>
+        <span><b>စနေ</b> နှင့် <b>တနင်္ဂနွေ</b> ပိတ်ရက်ကို ဤနေရာတွင် ထည့်ရန်မလိုပါ — System မှ အလိုအလျောက် စစ်ဆေးသည်။</span>
       </div>
     </div>
   );

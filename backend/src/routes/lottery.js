@@ -103,6 +103,9 @@ router.get("/is-holiday", async (req, res) => {
     if (dayOfWeek === 0) {
       return res.json({ isHoliday: true, description: "တနင်္ဂနွေ ပိတ်ရက်", date: dateStr });
     }
+    if (dayOfWeek === 6) {
+      return res.json({ isHoliday: true, description: "စနေ ပိတ်ရက်", date: dateStr });
+    }
 
     const r = await pool.query("SELECT * FROM lottery_holidays WHERE holiday_date = $1", [dateStr]);
     if (r.rows.length > 0) {
