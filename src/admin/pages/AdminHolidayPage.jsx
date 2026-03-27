@@ -62,7 +62,7 @@ const AdminHolidayPage = () => {
   };
 
   const handleSeedDefaults = async () => {
-    if (!confirm(`${seedYear} ခုနှစ် မြန်မာ့နိုင်ငံတော် ပိတ်ရက်များ (၁၂ ရက်) ထည့်မည်လား?\n(ရှိပြီးသား ပိတ်ရက်များ ထပ်မထည့်ပါ)`)) return;
+    if (!confirm(`${seedYear} ခုနှစ် ပိတ်ရက်များ ထည့်မည်လား?\n(ရှိပြီးသား ပိတ်ရက်များ ထပ်မထည့်ပါ)`)) return;
     setSeeding(true);
     try {
       const r = await api.admin.seedDefaultHolidays(seedYear);
@@ -96,7 +96,7 @@ const AdminHolidayPage = () => {
         <Info className="h-4 w-4 mt-0.5 shrink-0" />
         <div>
           <b>Auto-detect</b> — <b>စနေ</b> နှင့် <b>တနင်္ဂနွေ</b> နေ့များကို အလိုအလျောက် ပိတ်ရက်အဖြစ် သတ်မှတ်သည်။
-          အောက်ပါ ဇယားတွင် မြန်မာ့အများပြည်သူ ပိတ်ရက်များ ထည့်သွင်းပါ။
+          အောက်ပါ ဇယားတွင် ပိတ်ရက်များ ထည့်သွင်းပါ။
           ပိတ်ရက်တွင် 2D နှင့် 3D ထိုးခွင့် ပိတ်သွားမည်ဖြစ်သည်။
         </div>
       </div>
@@ -111,10 +111,10 @@ const AdminHolidayPage = () => {
       {/* Seed defaults */}
       <div className="bg-white rounded-2xl shadow-sm border p-4 space-y-3">
         <h2 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-          <Sparkles className="h-4 w-4 text-yellow-500" /> မြန်မာ့နိုင်ငံတော် ပိတ်ရက် Default ထည့်မည်
+          <Sparkles className="h-4 w-4 text-yellow-500" /> ပိတ်ရက် Default ထည့်မည်
         </h2>
         <p className="text-xs text-gray-500">
-          လွတ်လပ်ရေးနေ့, ပြည်ထောင်စုနေ့, တပ်မတော်နေ့, သင်္ကြန်, နှစ်သစ်ကူး, အလုပ်သမားနေ့, အာဇာနည်နေ့, ခရစ်မတ် — ၁၂ ရက် ပါ၀င်သည်
+          Thailand SET ပိတ်ရက်များ — New Year, Chakri Day, Songkran, Labour Day, King's Birthday, Queen's Birthday နှင့် Buddhist holidays အပါအဝင် ၁၉ ရက် ပါ၀င်သည်
         </p>
         <div className="flex gap-2 items-center">
           <select
