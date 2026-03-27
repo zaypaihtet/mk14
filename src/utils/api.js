@@ -87,6 +87,7 @@ export const api = {
     getNumberLimits2D: () => request("GET", "/admin/number-limits/2d"),
     updateNumberLimits2D: (updates) => request("PUT", "/admin/number-limits/2d", { updates }),
     setGlobalLimit2D: (day_limit) => request("PATCH", "/admin/number-limits/2d/global", { day_limit }),
+    testTelegram: () => request("POST", "/admin/telegram/test"),
   },
 
   // Number status (public — no auth)

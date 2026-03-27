@@ -1,5 +1,6 @@
 const pool = require("../db");
 const path = require("path");
+const { sendTelegram } = require("../utils/telegram");
 
 const getBalance = async (req, res) => {
   try {
@@ -15,12 +16,22 @@ const submitDeposit = async (req, res) => {
   if (!amount || !method) return res.status(400).json({ message: "Amount နှင့် Method ဖြည့်ပါ" });
   const receipt_image = req.file ? `/uploads/${req.file.filename}` : null;
   try {
+    const userRow = await pool.query("SELECT name, phone FROM users WHERE id = $1", [req.user.id]);
+    const user = userRow.rows[0] || {};
     const result = await pool.query(
       `INSERT INTO deposits (user_id, amount, method, receipt_image, note)
        VALUES ($1, $2, $3, $4, $5) RETURNING *`,
       [req.user.id, parseInt(amount), method, receipt_image, note || null]
     );
     res.status(201).json({ message: "ငွေဖြည့်မှု တင်ပြပြီးပါပြီ။ Admin အတည်ပြုရန် စောင့်ပါ", deposit: result.rows[0] });
+    // Telegram notification (fire-and-forget)
+    sendTelegram(
+      `💰 <b>ငွေဖြည့် တောင်းဆိုမှု</b>\n` +
+      `👤 ${user.name} (${user.phone})\n` +
+      `💵 ${parseInt(amount).toLocaleString()} ကျပ် — ${method.toUpperCase()}\n` +
+      (note ? `📝 ${note}\n` : "") +
+      `🕒 ${new Date().toLocaleString("my-MM")}`
+    ).catch(() => {});
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Server error" });
@@ -33,9 +44,9 @@ const submitWithdraw = async (req, res) => {
     return res.status(400).json({ message: "အချက်အလက်များ မပြည့်စုံပါ" });
   }
   try {
-    const userResult = await pool.query("SELECT balance FROM users WHERE id = $1", [req.user.id]);
-    const balance = userResult.rows[0].balance;
-    if (balance < parseInt(amount)) {
+    const userResult = await pool.query("SELECT balance, name, phone FROM users WHERE id = $1", [req.user.id]);
+    const user = userResult.rows[0];
+    if (user.balance < parseInt(amount)) {
       return res.status(400).json({ message: "လက်ကျန်ငွေ မလုံလောက်ပါ" });
     }
     await pool.query("UPDATE users SET balance = balance - $1 WHERE id = $2", [parseInt(amount), req.user.id]);
@@ -45,6 +56,14 @@ const submitWithdraw = async (req, res) => {
       [req.user.id, parseInt(amount), account_number, account_name, bank_method]
     );
     res.status(201).json({ message: "ငွေထုတ်မှု တင်ပြပြီးပါပြီ", withdrawal: result.rows[0] });
+    // Telegram notification (fire-and-forget)
+    sendTelegram(
+      `🏧 <b>ငွေထုတ် တောင်းဆိုမှု</b>\n` +
+      `👤 ${user.name} (${user.phone})\n` +
+      `💵 ${parseInt(amount).toLocaleString()} ကျပ် — ${bank_method.toUpperCase()}\n` +
+      `🏦 ${account_name} (${account_number})\n` +
+      `🕒 ${new Date().toLocaleString("my-MM")}`
+    ).catch(() => {});
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Server error" });

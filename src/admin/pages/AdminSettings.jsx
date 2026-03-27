@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Save, Clock, Calendar, Eye, Zap, Phone, Image, AlignLeft, Trash2, Plus, MessageSquare, CreditCard } from "lucide-react";
+import { Save, Clock, Calendar, Eye, Zap, Phone, Image, AlignLeft, Trash2, Plus, MessageSquare, CreditCard, Send } from "lucide-react";
 import { api } from "../../utils/api";
 
 const DAYS = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
@@ -42,6 +42,8 @@ const AdminSettings = () => {
     "wave_name": "",
     "kpay_number": "",
     "kpay_name": "",
+    "telegram_bot_token": "",
+    "telegram_chat_id": "",
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -276,6 +278,56 @@ const AdminSettings = () => {
               className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400" />
           </div>
         </div>
+      </div>
+
+      {/* Telegram Bot */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-4">
+        <div className="flex items-center gap-2 mb-1">
+          <Send className="h-5 w-5 text-blue-400" />
+          <h2 className="text-lg font-semibold">Telegram Bot (ငွေသွင်း/ထုတ် အကြောင်းကြားချက်)</h2>
+        </div>
+        <p className="text-xs text-gray-500">
+          User ငွေဖြည့် / ငွေထုတ် တင်ပြတိုင်း Telegram Bot မှ Chat ID ထဲသို့ message ပေးပို့မည်။
+          Bot token မရှိသေးလျှင် @BotFather မှ token ရယူပါ။
+        </p>
+        <div className="space-y-3">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Bot Token</label>
+            <input
+              type="text"
+              value={config["telegram_bot_token"] || ""}
+              onChange={(e) => set("telegram_bot_token", e.target.value)}
+              placeholder="123456789:AAF..."
+              className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 font-mono"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Chat ID</label>
+            <input
+              type="text"
+              value={config["telegram_chat_id"] || ""}
+              onChange={(e) => set("telegram_chat_id", e.target.value)}
+              placeholder="-100XXXXXXXXX (Group) သို့မဟုတ် XXXXXXX (Personal)"
+              className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 font-mono"
+            />
+          </div>
+        </div>
+        <p className="text-xs text-amber-600 bg-amber-50 rounded-lg px-3 py-2">
+          ⚠️ Token နှင့် Chat ID ကို "သိမ်းဆည်းမည်" ခလုတ် နှိပ်ပြီးမှ Test ခလုတ် နှိပ်ပါ
+        </p>
+        <button
+          type="button"
+          onClick={async () => {
+            try {
+              const r = await api.admin.testTelegram();
+              showMsg("✓ " + r.message);
+            } catch (e) { showMsg("Error: " + e.message); }
+          }}
+          className="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium px-4 py-2 rounded-xl transition-colors"
+        >
+          <Send className="h-4 w-4" />
+          Test Message ပေးပို့မည်
+        </button>
       </div>
 
       {/* Marquee Text */}

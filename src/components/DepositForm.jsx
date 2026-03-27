@@ -15,25 +15,25 @@ const DepositForm = () => {
   const [amount, setAmount] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [appConfig, setAppConfig] = useState({});
+  const [appConfig, setAppConfig] = useState(null);
 
   useEffect(() => {
     apiFetch("/api/config")
       .then((r) => r.json())
       .then(setAppConfig)
-      .catch(() => {});
+      .catch(() => setAppConfig({}));
   }, []);
 
   const accounts = {
     wavemoney: {
       img: "/images/wavemoney.jpg",
-      number: appConfig.wave_number || "099000000",
-      name: appConfig.wave_name || "Kyaw Kyaw",
+      number: appConfig?.wave_number || "",
+      name: appConfig?.wave_name || "",
     },
     kpay: {
       img: "/images/kpay.jpg",
-      number: appConfig.kpay_number || "097700000",
-      name: appConfig.kpay_name || "Aung Aung",
+      number: appConfig?.kpay_number || "",
+      name: appConfig?.kpay_name || "",
     },
   };
   const account = accounts[method] || accounts.wavemoney;
@@ -68,8 +68,16 @@ const DepositForm = () => {
           <div className="mt-2 flex items-center space-x-3 cursor-pointer">
             <img src={account.img} alt={method} className="size-12 rounded" />
             <div>
-              <p className="text-sm text-gray-500">Account: <span className="font-medium text-gray-800">{account.number}</span></p>
-              <p className="text-sm text-gray-500">Name: <span className="font-medium text-gray-800">{account.name}</span></p>
+              {appConfig === null ? (
+                <p className="text-sm text-gray-400 italic">Loading...</p>
+              ) : account.number ? (
+                <>
+                  <p className="text-sm text-gray-500">Account: <span className="font-medium text-gray-800">{account.number}</span></p>
+                  <p className="text-sm text-gray-500">Name: <span className="font-medium text-gray-800">{account.name}</span></p>
+                </>
+              ) : (
+                <p className="text-sm text-amber-600">Admin မှ account နံပါတ် မသတ်မှတ်ရသေးပါ</p>
+              )}
             </div>
           </div>
 

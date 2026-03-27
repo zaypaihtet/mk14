@@ -25,6 +25,15 @@ router.post("/results/2d", publishResult2D);
 router.post("/results/3d", publishResult3D);
 
 const pool = require("../db");
+const { sendTelegram } = require("../utils/telegram");
+
+// Test Telegram connection
+router.post("/telegram/test", async (req, res) => {
+  try {
+    await sendTelegram("✅ <b>KM Fourteen Bot Test</b>\nTelegram Bot ချိတ်ဆက်မှု အောင်မြင်ပါသည်!");
+    res.json({ message: "Test message ပေးပို့ပြီးပါပြီ" });
+  } catch (err) { res.status(500).json({ message: err.message }); }
+});
 
 router.get("/config", async (req, res) => {
   try {

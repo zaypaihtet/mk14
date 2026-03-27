@@ -23,7 +23,6 @@ import AdminLayout from "./src/admin/AdminLayout";
 import AdminLogin from "./src/admin/pages/AdminLogin";
 import Dashboard from "./src/admin/pages/Dashboard";
 import UsersList from "./src/admin/pages/UsersList";
-import AgentsList from "./src/admin/pages/AgentsList";
 import AdminDepositPage from "./src/admin/pages/AdminDepositPage";
 import AdminWithdrawPage from "./src/admin/pages/AdminWithdrawPage";
 import AdminMM2DPage from "./src/admin/pages/AdminMM2DPage";
@@ -88,7 +87,6 @@ const router = createBrowserRouter([
           { index: true, element: <Navigate to="dashboard" replace /> },
           { path: "dashboard", element: <Dashboard /> },
           { path: "users", element: <UsersList /> },
-          { path: "agents", element: <AgentsList /> },
           { path: "deposit", element: <AdminDepositPage /> },
           { path: "withdraw", element: <AdminWithdrawPage /> },
           { path: "mm2d", element: <AdminMM2DPage /> },
