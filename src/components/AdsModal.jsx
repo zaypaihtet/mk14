@@ -7,32 +7,38 @@ const TODAY_KEY = "ads_shown_date";
 const AdsModal = () => {
   const [isOpen, setIsOpen]       = useState(false);
   const [bannerUrl, setBannerUrl] = useState("");
-  const [title, setTitle]         = useState("အထူးကမ်းလှမ်းချက်!");
-  const [text, setText]           = useState("ယနေ့ပဲ စတင်ကစားပါ!");
+  const [title, setTitle]         = useState("");
+  const [text, setText]           = useState("");
 
   useEffect(() => {
+    const today     = new Date().toISOString().slice(0, 10);
+    const lastShown = localStorage.getItem(TODAY_KEY);
+    if (lastShown === today) return;
+
     apiFetch("/api/config")
       .then((r) => r.json())
       .then((data) => {
-        // Pick first banner from banner_urls array, fallback to banner_url
+        let url = "";
         try {
           const urls = JSON.parse(data?.banner_urls || "[]");
-          if (urls.length > 0) setBannerUrl(urls[0]);
-          else if (data?.banner_url) setBannerUrl(data.banner_url);
+          if (urls.length > 0) url = urls[0];
+          else if (data?.banner_url) url = data.banner_url;
         } catch {
-          if (data?.banner_url) setBannerUrl(data.banner_url);
+          if (data?.banner_url) url = data.banner_url;
         }
-        if (data?.popup_title) setTitle(data.popup_title);
-        if (data?.popup_text)  setText(data.popup_text);
+        const popupTitle = data?.popup_title || "";
+        const popupText  = data?.popup_text  || "";
+
+        if (!url && !popupTitle && !popupText) return;
+
+        if (url) setBannerUrl(url);
+        if (popupTitle) setTitle(popupTitle);
+        if (popupText)  setText(popupText);
+
+        const timer = setTimeout(() => setIsOpen(true), 1500);
+        return () => clearTimeout(timer);
       })
       .catch(() => {});
-
-    const today     = new Date().toISOString().slice(0, 10);
-    const lastShown = localStorage.getItem(TODAY_KEY);
-    if (lastShown !== today) {
-      const timer = setTimeout(() => setIsOpen(true), 1500);
-      return () => clearTimeout(timer);
-    }
   }, []);
 
   const handleClose = () => {

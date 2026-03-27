@@ -10,11 +10,9 @@ import ContactComponent from "../components/ContactComponent";
 import Winners2DSection from "../components/Winners2DSection";
 import { isLoggedIn, apiFetch } from "../utils/api";
 
-const DEFAULT_MARQUEE = "Myanmar2D 85ဆ၊ Myanmar3D 600ဆ၊ Dubai2D 85ဆ — ရောင်းပိတ်ချိန် မနက် 11:58 AM၊ ညနေ 3:58 PM";
-
 const Home = () => {
   const [showNotificationModal, setShowNotificationModal] = useState(false);
-  const [marqueeText, setMarqueeText] = useState(DEFAULT_MARQUEE);
+  const [marqueeText, setMarqueeText] = useState("");
   const loggedIn = isLoggedIn();
 
   useEffect(() => {
@@ -48,14 +46,16 @@ const Home = () => {
 
         <LotteryCarousel />
 
-        <div className="bg-blue-600 text-white p-4">
-          <div className="overflow-hidden whitespace-nowrap">
-            <div className="inline-flex animate-marquee">
-              <p className="text-sm font-medium px-8">{marqueeText}</p>
-              <p className="text-sm font-medium px-8" aria-hidden="true">{marqueeText}</p>
+        {marqueeText && (
+          <div className="bg-blue-600 text-white p-4">
+            <div className="overflow-hidden whitespace-nowrap">
+              <div className="inline-flex animate-marquee">
+                <p className="text-sm font-medium px-8">{marqueeText}</p>
+                <p className="text-sm font-medium px-8" aria-hidden="true">{marqueeText}</p>
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         <main className="p-4 space-y-6">
           <LotteryResults />
